@@ -1,189 +1,189 @@
-# 更新工作项
+# Update work item
 
-> **CRITICAL** — 开始前 MUST 先用 Read 工具读取 `../SKILL.md`，其中包含前置检查、授权流程、命令参数参考、字段值格式、通用规范和错误处理。
+> **CRITICAL** — Before starting, MUST use the Read tool to read `../SKILL.md`, which contains pre-checking, authorization process, command parameter reference, field value format, general specifications and error handling.
 
-本技能用于在飞书项目中更新工作项的字段值或角色成员，全程自动化执行。不包括状态流转和节点流转（由其他 Skill 负责）。
+This skill is used to update field values ​​or role members of work items in Feishu projects, and the entire process is automated. Excludes status transfer and node transfer (responsible by other Skills).
 
 ---
 
-## 执行流程
+## Execution process
 
-### STEP 1 — 定位工作项并提取修改意图
+### STEP 1 — Locate work items and extract modification intent
 
-从用户输入中提取：
-- **目标工作项** — URL、工作项 ID 或名称
-- **修改内容** — 哪些字段要改成什么值
+Extract from user input:
+- **Target Work Item** — URL, work item ID, or name
+- **Modify content** — Which fields should be changed to what values?
 
-> **URL 处理**：用户给了 URL 必须先调 `url decode`。只有 `url_kind == workitem_detail` 才能进入本 SOP；其他 kind 按 [url-kinds.md](url-kinds.md) 拒绝或追问。拿到 `simple_name` 和 `work_item_id` 后，必须再调 `project search` 把 `simple_name` 转为权威 `project_key`（同名空间可能有多个）。**禁止**自己从 URL 截取路径段作参数。`work_item_id` 参数必须是字符串类型。
+> **URL processing**: The user must first adjust `url decode` after giving a URL. Only `url_kind == workitem_detail` can enter this SOP; for other kinds, please press [url-kinds.md](url-kinds.md) to refuse or ask. After getting `simple_name` and `work_item_id`, you must call `project search` to convert `simple_name` into the authoritative `project_key` (there may be multiple spaces with the same name). **It is forbidden** to intercept the path segment from the URL as a parameter. The `work_item_id` parameter must be of type string.
 
-🚨 **获取工作项类型（极重要）**：后续所有查询（字段配置、角色配置等）都强依赖 `work_item_type`。如果用户没有明确告知类型，**必须先调 `workitem get` 获取该实例的真实 `work_item_type`（返回体中的 `work_item_type.key`）**，绝不能猜测为 story 或 issue。
+🚨 **Get work item type (very important)**: All subsequent queries (field configuration, role configuration, etc.) are strongly dependent on `work_item_type`. If the user does not explicitly inform the type, **must first call `workitem get` to obtain the real `work_item_type` of the instance (`work_item_type.key` in the return body)** and must not guess it as a story or issue.
 
-### STEP 2 — 并行查询配置
+### STEP 2 — Parallel query configuration
 
-根据要修改的内容，**一轮内并行发起**：
+Depending on the content to be modified, **Initiate in parallel within one round**:
 
-| 调用 | 条件 | 说明 |
+| Call | Condition | Description |
 |------|------|------|
-| `workitem meta-fields(field_query="字段名")` | 涉及字段修改 | 普通字段用 `field_query` 模糊搜索或 `field_keys` 精确匹配，禁止无筛选逐页遍历；附件字段消歧按 [attachment.md](attachment.md) 使用类型过滤并翻页到 `has_more=false` |
-| `workitem meta-roles` | 涉及角色修改 | 获取角色 key |
-| `user search` | 涉及人员字段 | 批量转换姓名为 userkey |
+| `workitem meta-fields(field_query="field name")` | Involves field modification | For ordinary fields, use `field_query` for fuzzy search or `field_keys` for exact matching, which prohibits page-by-page traversal without filtering; for attachment field disambiguation, use [attachment.md](attachment.md) to use type filtering and turn the page to `has_more=false` |
+| `workitem meta-roles` | Involves role modification | Get role key |
+| `user search` | Personnel fields involved | Convert names to userkey in batches |
 
-🚨 **效率要求**：普通配置必须一轮并发查询，下一轮直接执行更新，禁止逐个串行查询。唯一例外是附件字段消歧：首轮按类型过滤查询；若 `has_more=true`，必须继续串行翻页收集完全部候选后才能更新。
+🚨 **Efficiency Requirements**: Ordinary configurations must perform one round of concurrent queries, and perform updates directly in the next round. Serial queries one by one are prohibited. The only exception is attachment field disambiguation: the first round of filtering queries by type; if `has_more=true`, serial paging must continue to collect all candidates before updating.
 
-**附件字段门禁**：只要用户要求上传附件，就必须实时查询当前空间和真实工作项类型下全部 `file` 和 `multi-file` 字段。用户指定字段名或 key 时做精确匹配；用户只说“附件”且出现多个候选时，列出字段名、key、类型并让用户选择。禁止默认取第一个，禁止复用历史会话里的附件字段，禁止把 `attachment` 或 `multi_attachment` 写死。确定目标后，上传、更新和回读都必须使用同一个字段 key。完整协议见 [attachment.md](attachment.md)。
+**Attachment field access control**: As long as the user requests to upload an attachment, all `file` and `multi-file` fields under the current space and real work item type must be queried in real time. When the user specifies a field name or key, do an exact match; when the user only says "attachment" and multiple candidates appear, list the field name, key, and type and let the user choose. It is forbidden to take the first one by default, it is forbidden to reuse the attachment field in the historical session, and it is forbidden to hard-code `attachment` or `multi_attachment`. After the target is determined, the same field key must be used for uploading, updating, and reading back. See [attachment.md](attachment.md) for the complete agreement.
 
-### STEP 3 — 转换字段值
+### STEP 3 — Convert field value
 
-将用户给的自然语言值转换成 API 格式（完整格式见主文档 [SKILL.md](../SKILL.md)「字段值格式」）：
+Convert the natural language value given by the user into API format (for the complete format, see the main document [SKILL.md](../SKILL.md) "Field Value Format"):
 
-> 🚨 **关键约定**：`field_value` 协议层是 **STRING**。标量直接字符串化；数组/对象**必须 JSON.stringify**，否则报 `need STRING type, but got: LIST`。
+> 🚨 **Key Convention**: `field_value` protocol layer is **STRING**. Scalars are directly stringified; arrays/objects must be JSON.stringify**, otherwise `need STRING type, but got: LIST` will be reported.
 
-| field_type | 更新场景差异化提示 |
+| field_type | Update scene differentiation prompts |
 |---|---|
-| `user` | 姓名 → `user search` → 单个 userkey 字符串；多人同名时用户说"分配给我自己"用 `current_login_user()`，否则**必须确认** |
-| `signal` | `option_id` 字符串（以 `workitem meta-fields` 的 `options[].option_id` 为准；不接受 `"true"`/`"false"`/`"null"`） |
-| `workitem_related_multi_select` | **stringified** ID 数组，**禁止写入自身 ID**（防循环引用，触发 `exists loop` 报错） |
-| `group_type` | 拉群方式为逻辑字段，读返回判别键 `value`，写协议判别键 `type`（`auto`/`bind`/`disabled`），**读写不对称** |
-| `multi-file` | 按 [attachment.md](attachment.md) 完成“本地文件校验 → 字段消歧 → 对象存储上传 → 字段绑定 → 写后验收”；追加时必须读取并保留当前完整数组，再逐个追加 |
-| `file` | 按 [attachment.md](attachment.md) 的兼容性规则处理；不得假设旧版或单附件字段支持多附件，也不得与 `multi-file` 共用未经验证的多附件写入协议 |
+| `user` | Name → `user search` → single userkey string; when multiple people have the same name, the user says "assign it to myself" using `current_login_user()`, otherwise **must confirm** |
+| `signal` | `option_id` string (based on `options[].option_id` of `workitem meta-fields`; `"true"`/`"false"`/`"null"` is not accepted) |
+| `workitem_related_multi_select` | **stringified** ID array, **forbidden to write own ID** (prevent circular reference, trigger `exists loop` error) |
+| `group_type` | The group pulling method is a logical field, reading returns the discrimination key `value`, writing the protocol discrimination key `type` (`auto`/`bind`/`disabled`), **reading and writing asymmetry** |
+| `multi-file` | Press [attachment.md](attachment.md) to complete "local file verification → field disambiguation → object storage upload → field binding → acceptance after writing"; when appending, the current complete array must be read and retained, and then appended one by one |
+| `file` | Treated according to the compatibility rules of [attachment.md](attachment.md); legacy or single-attachment fields must not be assumed to support multiple attachments, nor may they share the unvalidated multi-attachment writing protocol with `multi-file` |
 
-> 其余通用字段类型（text / number / bool / multi-user / date / schedule / precise_date / select 系列 / multi-text 等）写入格式详见主文档 [SKILL.md](../SKILL.md)「字段值格式」章节。
+> For details on the writing format of other common field types (text / number / bool / multi-user / date / schedule / precise_date / select series / multi-text, etc.), please refer to the "Field Value Format" chapter of the main document [SKILL.md](../SKILL.md).
 
-> **用户提供的是工作项名称而非 ID** 时，按 [field-value-extras.md](field-value-extras.md)「关联工作项名称 → ID 转换」完整流程（获取目标约束 → `workitem query` 搜索 → 消歧 → 按类型写入）处理。
+> **When the user provides a work item name instead of an ID**, it is processed according to the [field-value-extras.md](field-value-extras.md) "Associated work item name → ID conversion" complete process (get target constraints → `workitem query` search → disambiguation → write by type).
 
-### STEP 4 — 执行更新
+### STEP 4 — Perform update
 
 ```bash
-meegle workitem update --work-item-id 工作项ID --project-key 空间key --role-operate '{{role_operate}}' --fields '[{"field_key":"priority","field_value":"option_id"}]' --format json
+meegle workitem update --work-item-id work item ID --project-key space key --role-operate '{{role_operate}}' --fields '[{"field_key":"priority","field_value":"option_id"}]' --format json
 ```
 
-**角色操作**通过 `role_operate` 参数：
+**Role operation** via `role_operate` parameter:
 ```json
-[{"op": "add", "role_key": "角色key", "user_keys": ["userkey1"]}]
+[{"op": "add", "role_key": "role key", "user_keys": ["userkey1"]}]
 ```
 
-**拉群方式更新（`group_type` 逻辑字段）**：服务端把 `group_id` / `chat_group` 合并到 `group_type` 单字段，统一通过它读写——**禁止再单独写 `group_id` / `chat_group`**。写协议 `field_value`：
+**Group mode update (`group_type` logical field)**: The server merges `group_id` / `chat_group` into the `group_type` single field, and uniformly reads and writes through it - ** It is forbidden to write `group_id` / `chat_group`** separately. Write protocol `field_value`:
 
 ```json
 {"type": "auto" | "bind" | "disabled", "group_id": "oc_xxx"}
 ```
 
-⚠️ **读写不对称**：读返回的判别键是 `value`（如 `{"value":"auto","label":"自动拉群","group_id":"oc_xxx"}`），写要求的判别键是 `type`。不能直接把读到的结构丢回 update。
+⚠️ **Reading and writing asymmetry**: The discriminating key returned by reading is `value` (such as `{"value":"auto","label":"automatic pull group","group_id":"oc_xxx"}`), and the discriminating key required by writing is `type`. You cannot directly throw the read structure back to update.
 
-| `type` | 含义 | 是否带 `group_id` | 客户端预校验 |
+| `type` | Meaning | Whether to include `group_id` | Client pre-verification |
 |---|---|---|---|
-| `auto` | 自动拉群 | 不允许 | 带了 → 阻断（服务端会回 `group_type conflicts with group_id: type=auto`） |
-| `bind` | 绑定现有群 | **必填**，非空 `oc_xxx`（空串/纯空格也算缺失） | 缺失或全空白 → 阻断（服务端会回 `group_id is required when group_type=bind`） |
-| `disabled` | 不拉群 | 不允许 | 带了 → 阻断（服务端会回 `group_type conflicts with group_id: type=disabled`） |
+| `auto` | Automatically pull the group | Not allowed | With → Blocked (the server will reply `group_type conflicts with group_id: type=auto`) |
+| `bind` | Bind an existing group | **Required**, non-empty `oc_xxx` (empty strings/pure spaces are also missing) | Missing or completely blank → blocked (the server will return `group_id is required when group_type=bind`) |
+| `disabled` | Not allowed | Not allowed | With → Blocked (the server will reply `group_type conflicts with group_id: type=disabled`) |
 
-写法示例（详见 [api-examples.md](api-examples.md) 工作项域）：
+Writing example (see [api-examples.md](api-examples.md) work item field for details):
 
 ```bash
-meegle workitem update --work-item-id 工作项ID --project-key 空间key --role-operate '{{role_operate}}' --fields '[{"field_key":"group_type","field_value":"{\"type\":\"bind\",\"group_id\":\"oc_xxx\"}"}]' --format json
+meegle workitem update --work-item-id work item ID --project-key space key --role-operate '{{role_operate}}' --fields '[{"field_key":"group_type","field_value":"{\"type\":\"bind\",\"group_id\":\"oc_xxx\"}"}]' --format json
 ```
 
-### STEP 5 — 返回结果
+### STEP 5 — Return results
 
-如涉及附件，先调 `workitem get` 回读已消歧的目标字段，逐一核对请求文件名和数量。上传接口或更新接口返回成功，都不能替代目标字段的写后验收。验收通过后再展示修改字段、目标附件字段名/key、实际文件名和数量；无法验证页面布局时仅声明 API 字段写入成功。
+If attachments are involved, first call `workitem get` to read back the disambiguated target fields and check the requested file name and quantity one by one. Neither the upload interface nor the update interface returns success, and it cannot replace the post-write acceptance of the target field. After the acceptance is passed, the modified field, target attachment field name/key, actual file name and quantity will be displayed; when the page layout cannot be verified, it will only be declared that the API field was written successfully.
 
 ---
 
-## 增量追加 (Append SOP)
+## Incremental append (Append SOP)
 
-当用户要求"追加"、"添加"内容时（而非覆盖），必须遵循：
+When users request to "append" or "add" content (rather than overwriting), they must follow:
 
-**1. 获取旧值** → 调 `workitem get` 或 `workitem query` 查当前值
+**1. Get the old value** → Call `workitem get` or `workitem query` to check the current value
 
-**2. 合并新旧值**：
+**2. Merge old and new values**:
 
-| 字段类型 | 合并方式 |
+| Field type | Merge method |
 |---------|---------|
-| 文本（`text` / `multi-text`） | 新文本拼接到旧文本后面 |
-| 多选枚举（`multi-select`） | 旧选项 + 新选项，`[{"option_id":"xxx"}, ...]` |
-| 树状多选（`tree-multi-select`） | 纯字符串一维数组 `["id1", "id2"]`，去重 |
-| 关联工作项（`workitem_related_multi_select`） | 旧 ID + 新 ID，去重后写入（只能绑定同空间或白名单空间实例） |
-| 多选人员（`multi-user`） | 旧 userkey + 新 userkey，去重 |
-| 附件（`multi-file`） | 按 [attachment.md](attachment.md) 逐个追加：每轮读取目标字段，把旧附件完整对象（包括服务端补充的 `uid`、`url` 和未知字段）原样保留，只追加一个新对象，整体 stringify 写回后立即回读验收。`update` 是覆盖语义，不取旧值会丢历史附件 |
+| Text (`text` / `multi-text`) | New text is spliced ​​after the old text |
+| Multi-select enumeration (`multi-select`) | Old options + new options, `[{"option_id":"xxx"}, ...]` |
+| Tree multi-select (`tree-multi-select`) | Pure string one-dimensional array `["id1", "id2"]`, deduplication |
+| Related work items (`workitem_related_multi_select`) | Old ID + new ID, write after deduplication (can only bind instances in the same space or whitelisted space) |
+| Multi-select people (`multi-user`) | Old userkey + new userkey, remove duplicates |
+| Attachment (`multi-file`) | Press [attachment.md](attachment.md) to append one by one: read the target fields in each round, keep the complete object of the old attachment (including the `uid`, `url` and unknown fields supplemented by the server) as it is, only append a new object, and read back and accept it immediately after the entire stringify is written back. `update` has overwriting semantics. If the old value is not taken, historical attachments will be lost |
 
-**3. 覆盖写入** → 通过 `workitem update` 写入合并后的值
+**3. Overwrite writing** → write the merged value through `workitem update`
 
-### 角色追加与删除
+### Adding and deleting roles
 
-| 操作 | `role_operate` 参数 |
+| Operations | `role_operate` parameters |
 |------|-------------------|
-| **追加角色人员** | `{"op": "add", "role_key": "xxx", "user_keys": ["userkey"]}` — 不需要先获取旧值 |
-| **清空角色人员**（保留角色） | `{"op": "remove", "role_key": "xxx", "user_keys": []}` |
-| **彻底删除角色** | `{"op": "remove", "role_key": "xxx", "user_keys": ["_all"]}` |
+| **Add role personnel** | `{"op": "add", "role_key": "xxx", "user_keys": ["userkey"]}` — No need to get the old value first |
+| **Clear role personnel** (retain roles) | `{"op": "remove", "role_key": "xxx", "user_keys": []}` |
+| **Delete role completely** | `{"op": "remove", "role_key": "xxx", "user_keys": ["_all"]}` |
 
-### 动态 MQL 查询追加
+### Dynamic MQL query append
 
-当用户以自然语言条件要求追加关联项（如"将名称包含'依赖'的所有需求追加到前置依赖中"）时：
-1. 用 `workitem query` 检索符合条件的工作项
-2. 提取 ID 列表
-3. 按【获取旧值 → 合并 → 写入】流程追加
+When the user uses natural language conditions to request the addition of related items (such as "Append all requirements with names containing 'dependency' to pre-dependencies"):
+1. Use `workitem query` to retrieve work items that meet the conditions
+2. Extract ID list
+3. Press the [Get Old Value → Merge → Write] process to append
 
 ---
 
-## 边界说明
+## Boundary description
 
-| 场景 | 处理 |
+| Scene | Processing |
 |------|------|
-| **节点级字段**（排期、估分、节点负责人） | 不属于本 Skill，需用 `workflow update-node`。如检测到用户要改节点字段，自动调 `workflow update-node` |
-| **角色更新** | 必须通过 `role_operate`，不能放在 `fields` 里 |
-| **模板切换**（修改 template） | 高风险操作，这是**唯一需要提醒用户确认**的场景 |
+| **Node-level fields** (scheduling, rating, node leader) | Do not belong to this Skill, you need to use `workflow update-node`. If it is detected that the user wants to change the node field, automatically adjust `workflow update-node` |
+| **Role Update** | Must pass `role_operate`, cannot be placed in `fields` |
+| **Template switching** (modify template) | High-risk operation, this is the **only scenario where the user needs to be reminded to confirm** |
 
 ---
 
-## 不可写入的字段类型
+## Unwritable field types
 
-以下字段不支持 API 写入，遇到时**直接跳过并告知用户**：
+The following fields do not support API writing. If encountered, they will be skipped directly and notified to the user:
 
-| 类型 | 原因 |
+| Type | Reason |
 |------|------|
-| `vote-boolean`（轻量表态） | 计数器，只能页面操作 |
-| `vote-option` / `vote-option-multi`（投票） | 不支持接口伪造 |
-| 计算字段 | 系统自动计算，只读 |
+| `vote-boolean` (lightweight expression) | Counter, only page operations |
+| `vote-option` / `vote-option-multi` (vote) | Does not support interface forgery |
+| Calculated field | Automatically calculated by the system, read-only |
 
-> **复合明细表已支持通过 `workitem update` 写入**，但两类协议不同：`compound_field` 使用 stringified action 对象并以 `group_uuid` 定位行；`multi_user_compound_field` 使用 stringified userkey map，且是整体覆盖。更新多人复合字段前必须先读当前值并保留全部人员和非目标数据；该协议只更新当前 map 中已有人员，空值或目标人员不在 map 时不能自动新增人员，必须停止并由用户先通过页面配置人员范围。格式详见主文档 [SKILL.md](../SKILL.md)「字段值格式 → 复合明细表」章节。
+> **Compound details table already supports writing through `workitem update`**, but the two types of protocols are different: `compound_field` uses stringified action objects and locates rows with `group_uuid`; `multi_user_compound_field` uses stringified userkey map, and is fully covered. Before updating the multi-person compound field, you must first read the current value and retain all personnel and non-target data; this protocol only updates existing personnel in the current map. When the value is empty or the target personnel is not in the map, new personnel cannot be automatically added. It must be stopped and the user first configures the personnel range through the page. For details on the format, please refer to the chapter "Field Value Format → Composite Detailed List" in the main document [SKILL.md](../SKILL.md).
 
-**富文本与关联字段**：
-- **富文本/多行文本** → 直接传 Markdown 字符串
-- **关联云文档** → URL 数组 `["https://xxx.feishu.cn/docx/xxx"]`
-- **前置依赖/关联工作项** → 工作项 ID，不同空间可能要求字符串或数字格式，遇类型校验失败立刻切换；用户给的是名称而非 ID 时，按 [field-value-extras.md](field-value-extras.md)「关联工作项名称 → ID 转换」完整流程处理
-- **signal 类型** → `option_id` 字符串（以 `workitem meta-fields` 的 `options[].option_id` 为准）
-- **级联选项 (tree-select)** → 只传 `option_id` 纯字符串；报 `不满足层级配置` 时查 `children` 树找末级叶子节点，**展示给用户选择**
-- **循环引用保护** → 关联字段写入前**必须排查当前工作项自身 ID**，禁止将自身 ID 写入关联项，否则触发 `exists loop`（循环引用）报错
+**Rich text and related fields**:
+- **Rich text/multi-line text** → Directly pass Markdown string
+- **Associated cloud documents** → URL array `["https://xxx.feishu.cn/docx/xxx"]`
+- **Pre-dependency/associated work item** → work item ID, different spaces may require string or numeric format, switch immediately when type verification fails; when the user gives a name instead of an ID, press [field-value-extras.md](field-value-extras.md) "Associated work item name → ID conversion" for complete process processing
+- **signal type** → `option_id` string (based on `options[].option_id` of `workitem meta-fields`)
+- **Cascading options (tree-select)** → Only pass the `option_id` pure string; when reporting `not meeting the hierarchical configuration`, search the `children` tree to find the last leaf node, **display it to the user for selection**
+- **Circular reference protection** → Before writing the associated field, the current work item's own ID must be checked**, and it is prohibited to write the own ID into the associated item, otherwise an `exists loop` (circular reference) error will be triggered.
 
 ---
 
-## 错误自动恢复（自愈机制）
+## Automatic error recovery (self-healing mechanism)
 
-> 通用自愈规则（格式错误、级联层级、枚举不合法）见 [error-handling.md](error-handling.md)。以下为本 SOP 补充规则：
+> For general self-healing rules (format error, cascading level, illegal enumeration), see [error-handling.md](error-handling.md). The following are supplementary rules to this SOP:
 
-| 报错特征 | 自愈动作 |
+| Error reporting characteristics | Self-healing actions |
 |---------|---------|
-| 字段名匹配不到 | 用 `field_query` 模糊搜索取最佳匹配 |
-| 枚举值匹配不到 | 模糊匹配 option_name（包含关系），失败则列出所有选项 |
-| 角色 key 不确定 | 用 `role_query` 模糊搜索 |
+| Field name cannot be matched | Use `field_query` to fuzzy search to find the best match |
+| The enumeration value cannot be matched | Fuzzy matching option_name (inclusion relationship), if failed, all options will be listed |
+| Role key is uncertain | Use `role_query` to fuzzy search |
 
 ---
 
-## 熔断机制 (Circuit Breaker)
+## Circuit Breaker
 
-> 通用熔断规则（空间未找到、权限不足）见主文档 [SKILL.md](../SKILL.md)「错误处理」。以下为本 SOP 补充规则：
+> For general circuit breaker rules (space not found, insufficient permissions), see the main document [SKILL.md](../SKILL.md) "Error Handling". The following are supplementary rules to this SOP:
 
-1. **工作项类型未找到**：`workitem meta-types` 失败超过 3 次
-2. **字段转换大面积失败**：转换失败比例 > 60%，终止并列出失败字段明细
+1. **Work item type not found**: `workitem meta-types` failed more than 3 times
+2. **Extensive field conversion failure**: conversion failure ratio > 60%, terminate and list failed field details
 
 ---
 
-## 常见问题
+## FAQ
 
-| 问题 | 处理 |
+| Problem | Solution |
 |------|------|
-| 用户未指定工作项 | 追问 ID 或 URL |
-| 字段名匹配不到 | `workitem meta-fields(field_query="关键词")` 模糊查询 |
-| 枚举值匹配不到 | 展示所有枚举值让用户选 |
-| 人名匹配到多人 | 展示列表让用户指定，**禁止自行选择** |
-| 用户要"追加"而非覆盖 | 走增量追加 SOP |
-| 用户要改节点字段 | 自动切换到 `workflow update-node` |
+| User did not specify a work item | Asking for ID or URL |
+| Field name cannot be matched | `workitem meta-fields(field_query="keyword")` Fuzzy query |
+| The enumeration value cannot match | Display all enumeration values ​​for the user to choose |
+| Person name matched to multiple people | Display list allows users to specify, **No self-selection allowed** |
+| The user wants to "append" rather than overwrite | Follow the incremental append SOP |
+| The user wants to change the node field | Automatically switch to `workflow update-node` |

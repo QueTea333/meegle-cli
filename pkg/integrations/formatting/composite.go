@@ -26,7 +26,7 @@ import (
 // Error-envelope rendering (FormatOptions.ErrorEnvelope=true) takes priority
 // over everything above: no unwrapping, and table mode renders the inner
 // `error` record as a KV table with code/message/retryable rows per the
-// design spec §"错误处理契约".
+// design spec §"Error Handling Contract".
 type CompositeFormatter struct {
 	Base  frameworkoutput.Formatter
 	Table TableView

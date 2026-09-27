@@ -4,283 +4,283 @@
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16-brightgreen.svg)](https://nodejs.org/)
 [![npm version](https://img.shields.io/npm/v/@lark-project/meegle.svg)](https://www.npmjs.com/package/@lark-project/meegle)
 
-[English](./README.md) | [简体中文](./README.zh-CN.md)
+[English](./README.md) | [Simplified Chinese](./README.zh-CN.md)
 
-飞书项目（[Meegle](https://meegle.com?utm_source=github&utm_medium=readme&utm_campaign=meegle_cli) / [Lark Project](https://project.feishu.cn?utm_source=github&utm_medium=readme&utm_campaign=meegle_cli)）命令行工具。在终端中管理工作项、查看排期、搜索数据，无需打开浏览器。
+Feishu Project ([Meegle](https://meegle.com?utm_source=github&utm_medium=readme&utm_campaign=meegle_cli) / [Lark Project](https://project.feishu.cn?utm_source=github&utm_medium=readme&utm_campaign=meegle_cli)) command line tool. Manage Work Items, view schedules, and search data in the terminal without opening a browser.
 
-[安装](#安装) · [快速开始](#快速开始人类用户) · [Agent Skill](#ai-agent-skill) · [命令](#命令一览) · [企业扩展](#企业-cli-扩展) · [认证](#认证) · [配置](#配置) · [安全](#安全与风险提示) · [贡献](#贡献)
+[Installation](#install) · [Quick Start](#quickstarthumanuser) · [Agent Skill](#ai-agent-skill) · [Command](#command_list) · [Enterprise Extension](#enterprise-cli-extension) · [Authentication](#Authentication) · [Configuration](#Configuration) · [Security](#Security&Risk Tips) · [Contribution](#contribution)
 
-## 为什么选择 Meegle CLI？
+## Why choose Meegle CLI?
 
-- **Agent 友好** — 安装向导会安装内置 AI Agent Skill，把 Meegle 操作手册喂给 Trae、Claude Code、Cursor、Windsurf、Gemini CLI 等主流 Agent。CLI 命令同时面向人类和 Agent 设计，结构化 JSON 输出、`--dry-run` 预览、`--device-code` 无 TTY 流程
-- **覆盖完整** — 16 个业务域（工作项、工作流、子任务、评论、工时、关联、我的工作、视图、图表、团队、用户、空间、附件、交付物、资源库、WBS 计划表），50+ 命令映射到 Meegle 核心能力
-- **两层参数模型** — 日常用 `--flag-name` 轻便直接，复杂载荷（如 `fields[]`）用 `--params <json>` 兜底 —— 按场景选择合适粒度
-- **输出格式灵活** — 支持 `json` / `table` / `ndjson` / `raw`，配合 `--select` 点路径投影可直接 pipe 给其他工具
-- **默认安全** — 凭证存进系统 keychain、`${VAR}` 环境变量模板让 secret 不落地到 config 文件、多 profile 分离 staging / prod
-- **支持企业扩展** — 企业通过编译期引用公开的 `cmd`、Credential、Transport、Platform 包构建自己的发行版，无需 Fork 本仓库
+- **Agent Friendly** — The installation wizard will install the built-in AI Agent Skill and feed the Meegle Operation manual to mainstream Agents such as Trae, Claude Code, Cursor, Windsurf, and Gemini CLI. CLI commands are designed for both humans and agents, structured JSON output, `--dry-run` preview, `--device-code` without TTY process
+- **Complete coverage** — 16 business domains (Work Item, Workflow, Subtask, Comment, Work Hour, Relation, My Work, View, Chart, Team, User, Space, Attachment, Deliverable, Resource Library, WBS Plan Table), 50+ commands mapped to Meegle core capabilities
+- **Two-layer Parameters model** - Use `--flag-name` for daily use, which is light and direct. For complex loads (such as `fields[]`), use `--params <json>` for complete coverage - Choose the appropriate granularity according to the scenario
+- **Flexible output format** — Supports `json` / `table` / `ndjson` / `raw`, with `--select` point path projection can be directly piped to other tools
+- **Secure by default** — Credentials are stored in the system keychain, `${VAR}` environment variable template prevents secrets from being placed in the config file, and multiple profiles are separated into staging / prod
+- **Support enterprise expansion** - Enterprises can build their own distributions by referencing the public `cmd`, Credential, Transport, and Platform packages during compilation without the need to Fork this repository.
 
-## 功能概览
+## Function overview
 
-| 域                                                 | 能力                                                                                     |
+| Domain | Capabilities |
 | -------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| 📋 [工作项](#workitem--工作项域)                   | 创建、查看、更新、批量读、MQL 查询、查看操作记录、读元数据                               |
-| 🔀 [工作流](#workflow--工作流域)                   | 节点和状态流转、更新节点字段、列出可用流转和必填字段                                     |
-| ✅ [子任务](#subtask--子任务)                      | 创建、更新、完成、回滚子任务                                                             |
-| 💬 [评论](#comment--评论域)                        | 在工作项上添加和列出评论                                                                 |
-| ⏱️ [工时](#workhour--工时域)                       | 列出工时记录、查看团队成员排期                                                           |
-| 🔗 [关联](#relation--关系域)                       | 列出关联工作项、查看关联类型定义                                                         |
-| 📌 [我的工作](#mywork--工作台域)                   | 查看本周 / 已完成 / 逾期待办                                                             |
-| 👁️ [视图](#view--视图域)                           | 创建和更新固定视图、按名称搜索视图                                                       |
-| 📊 [图表](#chart--度量域)                          | 列出视图下的图表、查看图表详情                                                           |
-| 👥 [团队与用户](#team--user--人员域)               | 列出团队、团队成员、搜索用户、查看当前登录身份                                           |
-| 🗂️ [空间](#project--空间域)                        | 按关键词搜索空间                                                                         |
-| 📎 [附件](#attachment--附件域)                     | 两段式上传/下载协议 —— `prepare-*` 基础命令 + `+upload` / `+download` 端到端快捷命令     |
-| 📦 [交付物](#deliverable--交付物域)                | 列出交付物及所属根工作项、来源工作项                                                     |
-| 🧩 [资源库](#resource--资源库)                     | 创建资源模板、查看资源库配置                                                             |
-| 🗓️ [WBS 计划表](#wbs--wbs-计划表)                  | 查询草稿 / 已发布计划行、创建 / 编辑 / 发布 / 重置草稿、查询草稿进度、列流程资源库元素   |
-| 🔐 [认证与配置](#认证)                             | OAuth 登录、Device Code 流程、多 profile 配置、环境变量注入                              |
-| 🔗 [URL 解析](#url--url-解析)                      | 离线解析飞书项目 / Meegle URL，输出 `url_kind` + 结构化字段                              |
-| 🤖 [Agent Skill](#ai-agent-skill)                  | 内置 skill 供 Trae / Claude Code / Cursor / Windsurf / Gemini / Copilot 使用             |
+| 📋 [Work Item](#workitem--Work Item field) | Create, view, Update, batch read, MQL Query, view Operation records, read metadata |
+| 🔀 [Workflow](#workflow--Workflow domain) | Node and State flows, UpdateNodeField, list available flows and RequiredField |
+| ✅ [Subtask](#subtask--Subtask) | Create, Update, Complete, Rollback Subtask |
+| 💬 [Comment](#comment--Comment field) | Add and list Comments on Work Item |
+| ⏱️ [Work Hour](#workhour--Work Hour field) | List Work Hour records and view Team member schedules |
+| 🔗 [Relation](#relation--relationship domain) | List RelationWork Item and view RelationType definition |
+| 📌 [My Work](#mywork--workbench domain) | View this week / Completed / Overdue |
+| 👁️ [View](#view--View domain) | Create and Update fixed View, SearchView by name |
+| 📊 [Chart](#chart--measurement field) | List Charts under View and view ChartDetails |
+| 👥 [Team and User](#team--user--person domain) | List Team, Team members, Search users, and view current login identity |
+| 🗂️ [Space](#project--space domain) | Search space by keyword |
+| 📎 [Attachment](#attachment--Attachment domain) | Two-stage upload/download protocol - `prepare-*` basic command + `+upload` / `+download` end-to-end shortcut command |
+| 📦 [Deliverable](#deliverable--Deliverable domain) | List Deliverable and its root Work Item and source Work Item |
+| 🧩 [Resource Library](#resource--Resource Library) | Create resource template, view Resource LibraryConfiguration |
+| 🗓️ [WBS Plan Table](#wbs--wbs-Plan Table) | Query draft / Published plan line, Create / Edit / Publish / Reset draft, Query draft progress, column process Resource Library element |
+| 🔐 [Authentication and Configuration](#Authentication) | OAuth login, Device Code process, multi-profile Configuration, environment variable injection |
+| 🔗[URL parsing](#url--url-parsing) | Offline parsing Feishu Project/Meegle URL, output `url_kind` + structured Field |
+| 🤖 [Agent Skill](#ai-agent-skill) | Built-in skills for Trae / Claude Code / Cursor / Windsurf / Gemini / Copilot |
 
-## 安装
+## Install
 
-### 前置条件
+### Preconditions
 
-- Node.js >= 16（自带 `npm` / `npx`）
+- Node.js >= 16 (comes with `npm` / `npx`)
 
-运行安装向导：
+Run the installation wizard:
 
 ```bash
 npx @lark-project/meegle@latest install
 ```
 
-向导会全局安装或升级 CLI、安装 AI Agent Skill、配置 Meegle host，并启动登录。
+The wizard will globally install or upgrade the CLI, install the AI ​​Agent Skill, configure Meegle host, and initiate login.
 
-### 自动更新提示
+### Automatic Update prompt
 
-通过 npm 分发的 CLI 在交互式终端启动时，最多每 24 小时检查一次 npm 最新版本。发现新版本后，会从 [CHANGELOG](https://github.com/larksuite/meegle-cli/blob/main/CHANGELOG.md#changed) 提取当前版本到最新版本之间已经发布的 `Added` 和 `Changed` 条目，并展示交互式功能上新提示：
+The CLI distributed via npm checks for the latest version of npm at most every 24 hours when launched in an interactive terminal. After a new version is discovered, the `Added` and `Changed` entries that have been released between the current version and the latest version will be extracted from [CHANGELOG](https://github.com/larksuite/meegle-cli/blob/main/CHANGELOG.md#changed), and an interactive What's New prompt will be displayed:
 
 ```text
-✨ Meegle CLI 有新版本: v<当前版本> → v<最新版本>
+✨ New Meegle CLI version available: v<current version> → v<latest version>
 
-功能上新:
-  v<版本号>
-    • 新增: <功能摘要>
+What's New:
+v<version number>
+• Added: <functional summary>
 
-❯ 立即更新（推荐）
-  稍后提醒
-  使用 ↑/↓ 选择，按 Enter 确认
+❯ Update now (recommended)
+  Remind me later
+  Use ↑/↓ to select, press Enter to confirm
 ```
 
-直接按 Enter 会先执行 `npm install -g @lark-project/meegle@latest` 更新 CLI，再通过 `meegle install` 使用的同一套安装方式 best-effort 更新 Meegle Agent Skill，最后继续原命令。当前环境缺少合适的 Skill 安装器、安装器不兼容或 Skill 下载失败时，只会提示已跳过，不会把成功的 CLI 更新改判为失败。选择**稍后提醒**后，24 小时内不再检查。这个轻量更新流程不会重新配置 host 或触发登录；需要完整的一站式设置时仍可运行 `meegle install`。
+Directly pressing Enter will first execute `npm install -g @lark-project/meegle@latest` Update CLI, then use the same installation method best-effort Update Meegle Agent Skill used by `meegle install`, and finally continue the original command. When the current environment lacks a suitable Skill installer, the installer is incompatible, or the Skill download fails, it will only prompt that it has been skipped, and the successful CLI Update will not be judged as a failure. After selecting **Remind me later**, there will be no more checks within 24 hours. This lightweight Update process does not reconfigure the host or trigger a login; you can still run `meegle install` when you need a complete one-stop setup.
 
-非交互/CI 环境、stdout 被管道接走、执行 `install` 或 Shell 补全命令时会跳过检查，保证结构化命令输出不变。也可以设置 `MEEGLE_NO_UPDATE_CHECK=1` 显式关闭。
+In non-interactive/CI environments, stdout is taken over by pipes, and when executing `install` or Shell completion commands, the check will be skipped to ensure that the structured command output remains unchanged. It can also be turned off explicitly by setting `MEEGLE_NO_UPDATE_CHECK=1`.
 
-## 快速开始（人类用户）
+## Quick start (human users)
 
-> **给 AI Agent 的提示：** 如果你是在替用户完成这套安装的 AI Agent，请直接跳到 [快速开始（AI Agent）](#快速开始ai-agent--ci--无头环境) —— 那里有你需要的非交互命令。
+> **Tips for AI Agent:** If you are completing this installation of AI Agent for the user, please jump directly to [Quick Start (AI Agent)] (#Quick Start ai-agent--ci--headless environment) - there are non-interactive commands you need.
 
 ```bash
-# 1. 安装 CLI + Skill，配置 host，并登录
+# 1. Install CLI + Skill, Configuration host, and log in
 npx @lark-project/meegle@latest install
 
-# 2. 查看本周待办
+# 2. View this week’s to-do list
 meegle mywork todo --action this_week --page-num 1
 
-# 3. 查看帮助
+# 3. View help
 meegle --help
 meegle workitem --help
 
-# 4. 查看命令参数详情
+# 4. View command ParametersDetails
 meegle inspect workitem.create
 ```
 
-## 快速开始（AI Agent / CI / 无头环境）
+## Quick Start (AI Agent / CI / Headless Environment)
 
-默认浏览器 OAuth 流程依赖真实 TTY。在 CI Runner、管道、Claude Code 这类环境里，使用同一个安装向导，但显式传入 host 并启用 Device Code 登录：
+The default browser OAuth flow relies on real TTYs. In environments such as CI Runner, Pipeline, and Claude Code, use the same installation wizard, but explicitly pass in the host and enable Device Code login:
 
 ```bash
 npx -y @lark-project/meegle@latest install --host <host> --device-code --lang zh
 ```
 
-`<host>` 示例：`project.feishu.cn`、`meegle.com`，或自建租户域名（如 `your-tenant.example.com`）。
+`<host>` Example: `project.feishu.cn`, `meegle.com`, or self-created tenant domain name (such as `your-tenant.example.com`).
 
-Device Code 流程会输出授权 URL；把链接发给用户，并保持命令运行直到用户在浏览器完成授权。
+The Device Code process will output the authorization URL; send the link to the user and keep the command running until the user completes authorization in the browser.
 
-验证：
+verify:
 
 ```bash
 meegle auth status
 ```
 
-完全无人值守的 CI（没有真人参与）请改用环境变量注入 token，参见 [沙盒 / CI](#沙盒--ci直接注入环境变量)。
+For completely unattended CI (no real person participation), please use environment variables to inject tokens instead, see [Sandbox/CI](#Sandbox--ci directly injects environment variables).
 
 ## AI Agent Skill
 
-安装向导会安装 `skills/meegle/`，这是一份可直接加载到 Trae、Claude Code、Cursor、Windsurf、Gemini CLI、GitHub Copilot CLI 等 Agent 的 skill。它会教 Agent 通过本 CLI 操作 Meegle，而不是从自然语言说明里猜命令形状。
+The installation wizard will install `skills/meegle/`, which is a skill that can be directly loaded into Agents such as Trae, Claude Code, Cursor, Windsurf, Gemini CLI, GitHub Copilot CLI, etc. It will teach the Agent to operate Meegle through this CLI instead of guessing the command shape from the natural language Description.
 
-### 覆盖内容
+### Cover content
 
-- **命令参考** — 每个 `meegle` resource / method 的必填参数与示例
-- **MQL 搜索** — `workitem query` 的语法、运算符、作用域关键字
-- **字段值** — 复杂字段载荷（数组、嵌套 JSON、日期区间）的写法
-- **富文本** — Meegle 富文本编辑器支持的 Markdown 子集
-- **SOP** — 创建工作项、节点流转、状态流转、更新字段等场景的分步剧本
-- **授权守护** — 所有业务命令前强制先过 `meegle auth status`
+- **Command Reference** — RequiredParameters and Example for each `meegle` resource/method
+- **MQL Search** — syntax, operators, scope keywords of `workitem query`
+- **Field value** — How to write complex Field payloads (arrays, nested JSON, date ranges)
+- **Rich Text** — A subset of Markdown supported by the Meegle rich text editor
+- **SOP** — Step-by-step scripts for CreateWork Item, Node flow, State flow, UpdateField and other scenarios
+- **Authorization Guard** — All business commands must be preceded by `meegle auth status`
 
-### 使用方式
+### How to use
 
-安装向导执行完成后，直接用自然语言和 Agent 对话。例如：
+After the installation wizard is completed, you can directly talk to the Agent in natural language. For example:
 
 ```
-帮我看一下 PROJ 空间本周待办里的 P0 需求
+Help me take a look at the P0 requirements in this week’s to-do list in the PROJ space
 ```
 
-Agent 会参考 skill，自动选择合适的 `meegle` 命令执行。配合 `--dry-run`（见 [安全](#安全与风险提示)）可以在 Agent 真正执行副作用前先预览请求。
+The Agent will refer to the skill and automatically select the appropriate `meegle` command to execute. Combined with `--dry-run` (see [Security](#Security and Risk Tips)), the request can be previewed before the Agent actually executes the side effects.
 
-## 命令一览
+## Command list
 
-### workitem — 工作项域
+### workitem — Work Item field
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `workitem create` | 创建工作项 |
-| `workitem get` | 查看工作项概况 |
-| `workitem +batch-get` | 按 ID 批量读取工作项（客户端侧在 `workitem get` 之上做扇出；`+` 前缀代表场景/语法糖命令） |
-| `workitem update` | 修改工作项字段 |
-| `workitem query` | 使用 MQL 搜索工作项 |
-| `workitem list-op-records` | 查看操作记录 |
-| `workitem meta-types` | 查看工作项类型列表 |
-| `workitem meta-create-fields` | 查看创建时可用字段 |
-| `workitem meta-fields` | 查看字段配置 |
-| `workitem meta-roles` | 查看角色配置 |
+| `workitem create` | CreateWork Item |
+| `workitem get` | View Work Item overview |
+| `workitem +batch-get` | Read Work Item in batches by ID (the client side does fan-out on `workitem get`; the `+` prefix represents the scene/syntactic sugar command) |
+| `workitem update` | Modify Work ItemField |
+| `workitem query` | Using MQL SearchWork Item |
+| `workitem list-op-records` | View Operation records |
+| `workitem meta-types` | View Work ItemTypeList |
+| `workitem meta-create-fields` | Field available when viewing Create |
+| `workitem meta-fields` | View FieldConfiguration |
+| `workitem meta-roles` | View RoleConfiguration |
 
-### workflow — 工作流域
+### workflow — Workflow domain
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `workflow transition` | 流转或回滚节点 |
-| `workflow transition-state` | 流转状态流状态 |
-| `workflow get-node` | 查看节点详情 |
-| `workflow update-node` | 修改节点 |
-| `workflow meta-node-fields` | 查看节点字段配置 |
-| `workflow list-state-transitions` | 查看可流转状态 |
-| `workflow list-state-required` | 查看流转必填信息 |
+| `workflow transition` | Transfer or rollback Node |
+| `workflow transition-state` | Flow State flow State |
+| `workflow get-node` | View NodeDetails |
+| `workflow update-node` | Modify Node |
+| `workflow meta-node-fields` | View NodeFieldConfiguration |
+| `workflow list-state-transitions` | View transferable State |
+| `workflow list-state-required` | View flow Required information |
 
-### subtask — 子任务
+### subtask — Subtask
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `subtask update` | 创建/修改/完成/回滚子任务 |
+| `subtask update` | Create/Modify/Complete/Rollback Subtask |
 
-### comment — 评论域
+### comment — Comment field
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `comment add` | 添加评论 |
-| `comment list` | 查看评论列表 |
+| `comment add` | Add Comment |
+| `comment list` | View CommentList |
 
-### workhour — 工时域
+### workhour — Work Hour field
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `workhour list-records` | 查看工时登记记录 |
-| `workhour list-schedule` | 查看人员排期 |
+| `workhour list-records` | View Work Hour registration records |
+| `workhour list-schedule` | View personnel schedule |
 
-### relation — 关系域
+### relation — relational domain
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `relation list` | 查看关联的工作项 |
-| `relation meta-definitions` | 查看关联关系定义 |
+| `relation list` | View the Work Item of Relation |
+| `relation meta-definitions` | View Relation relationship definitions |
 
-### mywork — 工作台域
+### mywork — workbench domain
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `mywork todo` | 查看我的待办/已办 |
+| `mywork todo` | View my to-do/done |
 
-### view — 视图域
+### view — View domain
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `view create-fixed` | 创建固定视图 |
-| `view get` | 查看视图详情 |
-| `view update-fixed` | 更新固定视图 |
-| `view search` | 按名称搜索视图 |
-| `view list-multi-project-workitems` | 查看全景视图（multiProjectView）下的工作项列表 |
+| `view create-fixed` | Create fixed View |
+| `view get` | View ViewDetails |
+| `view update-fixed` | Update fixed View |
+| `view search` | SearchView by name |
+| `view list-multi-project-workitems` | View the Work ItemList under Panoramic View (multiProjectView) |
 
-### chart — 度量域
+### chart — Measurement field
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `chart get` | 查看图表详情 |
-| `chart list` | 查看视图下的图表列表 |
+| `chart get` | View ChartDetails |
+| `chart list` | View ChartList under View |
 
-### team / user — 人员域
+### team/user — Personnel field
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `team list` | 查看空间下的团队列表 |
-| `team list-members` | 查看团队成员 |
-| `user me` | 查看当前登录用户信息 |
-| `user search` | 搜索用户信息 |
+| `team list` | View TeamList under space |
+| `team list-members` | View Team members |
+| `user me` | View the currently logged in user information |
+| `user search` | Search user information |
 
-### project — 空间域
+### project — spatial domain
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `project search` | 搜索空间信息 |
+| `project search` | Search space information |
 
-### attachment — 附件域
+### attachment — Attachment field
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `attachment prepare-upload` | 上传预处理 —— 返回带签名的对象存储 URL 与分片计划 |
-| `attachment prepare-download` | 下载预处理 —— 返回带签名的对象存储 URL 与分片计划 |
-| `attachment +upload` | 端到端上传：预处理 + 签名 HTTP POST，返回 `file_token` 与文件元信息 |
-| `attachment +download` | 端到端下载：预处理 + 签名 HTTP GET + 原子写文件，用于消费 `workitem get` / `comment list` 返回的 `file_url` |
+| `attachment prepare-upload` | Upload preprocessing - returns signed object storage URL and sharding plan |
+| `attachment prepare-download` | Download preprocessing - returns signed object storage URL and sharding plan |
+| `attachment +upload` | End-to-end upload: preprocessing + signing HTTP POST, returning `file_token` and file meta information |
+| `attachment +download` | End-to-end download: preprocessing + signed HTTP GET + atomic write file, used to consume the `file_url` returned by `workitem get` / `comment list` |
 
-### deliverable — 交付物域
+### deliverable — Deliverable field
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `deliverable list` | 列出交付物及其根工作项、来源工作项 |
+| `deliverable list` | List Deliverables and their root Work Item and source Work Item |
 
-### resource — 资源库
+### resource — Resource Library
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `resource create` | 在启用资源库的工作项类型下创建资源模板（资源实例） |
-| `resource meta-fields` | 查看资源库配置（资源字段、资源角色） |
+| `resource create` | Create resource template (resource instance) under Work ItemType with Resource Library enabled |
+| `resource meta-fields` | View Resource LibraryConfiguration (resource Field, resource Role) |
 
-### wbs — WBS 计划表
+### wbs — WBS Plan Table
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `wbs list-draft-rows` | 在计划表草稿中按条件筛选行并返回指定字段 |
-| `wbs list-instance-rows` | 在已发布的线上计划表实例中按条件筛选行并返回指定字段 |
-| `wbs create-draft` | 为指定工作项实例创建新的计划表草稿 |
-| `wbs edit-draft` | 对计划表草稿单行执行一次原子操作（新增 / 删除 / 恢复 / 排序 / 改名 / 改负责人 / 改排期），操作类型通过 `--params` 指定 |
-| `wbs publish-draft` | 将编辑完成的草稿发布到线上 |
-| `wbs reset-draft` | 将草稿重置为线上实例状态，放弃所有未发布的修改 |
-| `wbs get-draft-progress` | 查询计划表草稿操作（创建 / 编辑 / 发布）的执行进度 |
-| `wbs list-element-templates` | 列出流程资源库中的资源节点与资源任务模板 |
+| `wbs list-draft-rows` | Filter rows by condition in the schedule draft and return the specified Field |
+| `wbs list-instance-rows` | Filter rows by condition in the published online schedule instance and return the specified Field |
+| `wbs create-draft` | Create a new schedule draft for the specified Work Item instance |
+| `wbs edit-draft` | Execute an atomic operation (Added/Delete/Restore/Sort/Rename/Change person in charge/Change schedule) on a single line of the schedule draft, the OperationType is specified through `--params` |
+| `wbs publish-draft` | Publish the edited draft online |
+| `wbs reset-draft` | Reset the draft to the online instance State, discarding all unpublished changes |
+| `wbs get-draft-progress` | Query Schedule Draft Operation (Create/Edit/Publish) execution progress |
+| `wbs list-element-templates` | List resource Nodes and resource task templates in the process Resource Library |
 
-### ai-handoff — AI 助手接力
+### ai-handoff — AI assistant relay
 
-这组命令由 CLI 本地注册，不属于 MCP tool。`availability` 是准备 `query` 或关联上下文前的可选预检；预期内的业务拒绝属于成功探测，返回稳定的 `reject_code` 和仅用于展示的 `reject_msg`。依赖或传输异常走 CLI 通用错误模型。
+This set of commands is registered locally by the CLI and does not belong to the MCP tool. `availability` is an optional pre-check before preparing `query` or Relation context; expected business rejection is a successful detection and returns stable `reject_code` and `reject_msg` for display only. Dependencies or transport exceptions follow the CLI common error model.
 
-`availability` 读取通用 `GET /goapi/v5/meeglecli/config` 探测结果中的 Handoff 配置及其 `mode`（`off`、`ask`、`auto`）。CLI 按 profile 缓存成功返回的完整配置快照至多 1 小时，依赖或传输异常不缓存。`preference handoff auto|ask|off` 成功、`auth login`、以及 `create-link` 被服务端拒绝时会立即失效配置缓存。`create-link` 不读缓存：它始终在服务端二次校验并直接创建链接。
+`availability` reads the Handoff Configuration and its `mode` (`off`, `ask`, `auto`) in the general `GET /goapi/v5/meeglecli/config` detection result. The CLI caches the complete Configuration snapshot returned successfully by profile for up to 1 hour, and does not cache dependencies or transport exceptions. When `preference handoff auto|ask|off` is successful, `auth login`, and `create-link` are rejected by the server, the Configuration cache will be invalidated immediately. `create-link` does not read the cache: it always double-checks on the server and creates the link directly.
 
-create-link HTTP 响应始终包含 `available`：正常情况返回 HTTP 200 和 `available=true + url`；CLI 随后只把该 URL 的 host（含配置的端口）替换为当前登录域名，保留 scheme、path、query 和 fragment，使链接始终落在当前选择的 Meegle 或飞书项目环境。业务预期内的不可用返回 HTTP 200 和 `available=false + reject_code + reject_msg`，同时清理本地配置缓存；非预期异常走接口通用错误响应。
+The create-link HTTP response always contains `available`: Normally, HTTP 200 and `available=true + url` are returned; the CLI then only replaces the host (including the Configuration port) of the URL with the current login domain name, retaining the scheme, path, query and fragment, so that the link always falls in the currently selected Meegle or Feishu Project environment. If the business is expected to be unavailable, HTTP 200 and `available=false + reject_code + reject_msg` will be returned, and the local Configuration cache will be cleared at the same time; unexpected exceptions will be responded to by the interface's general error response.
 
-设置 `MEEGLE_AI_HANDOFF=disabled` 可在当前安装环境中硬禁用 Handoff。此时 `availability` 和参数合法的 `create-link` 都会返回 `available=false`、`reject_code=LOCAL_DISABLED` 及仅用于展示的 `reject_msg`，不要求登录、不读取 availability 缓存，也不调用 Handoff API。未设置或值不是 `disabled` 时保持原有的服务端控制行为。本地门禁只能关闭功能，不能绕过服务端业务开关、权益或个人偏好将功能强制打开。
+Set `MEEGLE_AI_HANDOFF=disabled` to hard disable Handoff in the current installation. At this time, `availability` and `create-link` whose Parameters are legal will return `available=false`, `reject_code=LOCAL_DISABLED` and `reject_msg` which is only for display. It does not require login, does not read the availability cache, and does not call the Handoff API. If not set or the value is not `disabled`, the original server-side control behavior is maintained. Local access control can only turn off functions, and cannot forcibly turn on functions by bypassing server-side business switches, rights, or personal preferences.
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `ai-handoff availability` | 检查业务开关、灰度、AI 助手权益、个人偏好和链接服务可用性 |
-| `ai-handoff create-link` | 根据必填的 `--query` 和可选、可重复的类型化 `--related-context` JSON 对象生成 AI 助手链接 |
+| `ai-handoff availability` | Check business switches, grayscale, AI assistant benefits, personal preferences and linked service availability |
+| `ai-handoff create-link` | Generate AI assistant link based on Required `--query` and optional, repeatable Typed `--related-context` JSON object |
 
 ```bash
 meegle ai-handoff availability --format json
@@ -288,7 +288,7 @@ meegle ai-handoff availability --format json
 MEEGLE_AI_HANDOFF=disabled meegle ai-handoff availability --format json
 
 meegle ai-handoff create-link --params '{
-  "query": "总结风险并给出下一步行动建议",
+"query": "Summary of risks and suggestions for next steps",
   "related_context": [{
     "type": 3,
     "work_item": {
@@ -303,117 +303,117 @@ meegle ai-handoff create-link --help
 meegle inspect ai-handoff create-link
 ```
 
-每个 `related_context` 元素必须设置 `type`，并且只设置一个与类型匹配的 payload。Facade 契约只使用业务标识，不对外暴露 AI 服务的通用 `key`；只有转换为内部 `query + entities` 契约时才补齐该字段：
+Each `related_context` element must have `type` set, and only one payload matching Type must be set. The Facade contract only uses the business identifier and does not expose the common `key` of the AI ​​service; the Field is only completed when converted to the internal `query + entities` contract:
 
-| Type | Payload | 必填字段 | 可选字段 |
+| Type | Payload | RequiredField | OptionalField |
 |------|---------|----------|----------|
 | `1` Project | `project` | `project_key` | — |
 | `3` WorkItem | `work_item` | `project_key`、`work_item_type_key`、`work_item_id` | — |
 | `4` View | `view` | `project_key`、`view_id` | `work_item_type_key` |
 | `5` MeasureChart | `measure_chart` | `project_key`、`chart_id` | — |
 
-上下文类型 `2` 是 IDL 为当前暂不支持的 WorkItemType 上下文保留的枚举值，请勿使用或复用。
+ContextType `2` is an enumeration value reserved by IDL for the WorkItemType context that is currently not supported. Please do not use or reuse it.
 
-每次尝试都有独立的超时保护，可重试的传输失败（超时、HTTP 5xx/429、网络错误）会以指数退避加抖动的方式最多重试 3 次。`create-link` 会携带一个稳定的幂等键，并在这些重试中保持不变，因此重试不会创建第二条链接。策略、参数校验和 4xx 错误会快速失败，不做重试。Facade 返回的参数错误信封会映射为 `HANDOFF_API_INVALID_PARAM` 且 `retryable=false`，包括 query 或 context 数量超过协商上限的情况。CLI 不暴露 Facade 内部的 biz error id、cause 或 chain，只返回简洁消息，并建议通过 `ai-handoff availability` 查看当前限制。
+Each attempt has independent timeout protection, and retryable transmission failures (timeouts, HTTP 5xx/429, network errors) will be retried up to 3 times with exponential backoff and jitter. `create-link` will carry a stable idempotent key that remains unchanged across these retries, so retries will not create a second link. Policy, Parameters checksum and 4xx errors will fail quickly without retrying. The Parameters error envelope returned by Facade will be mapped to `HANDOFF_API_INVALID_PARAM` and `retryable=false`, including the case where the number of queries or contexts exceeds the negotiated upper limit. The CLI does not expose the Facade's internal biz error id, cause or chain, only returns a concise message and recommends checking the current limit via `ai-handoff availability`.
 
-### preference — 个人偏好
+### preference — personal preference
 
-Handoff Suggestions 偏好存储在服务端统一用户偏好服务中，不接收项目或租户参数；不存在用户覆盖值时默认 `auto`。通用偏好写接口使用 `preferences` 列表，当前 item 的 `type=handoff_suggestions`，payload 为 `{"mode":"off|ask|auto"}`；成功仅表示写入完成。读取当前配置统一走 CLI config 探测接口。模式写入成功后会失效本地配置缓存，使变更在下次探测时生效。
+Handoff Suggestions preferences are stored in the server-side unified user preference service and do not receive Project or tenant Parameters; when there is no user override value, it defaults to `auto`. The general preference writing interface uses `preferences` List, the current item's `type=handoff_suggestions`, and the payload is `{"mode":"off|ask|auto"}`; success only means that the writing is completed. Read the current Configuration through the CLI config detection interface. After the schema is successfully written, the local Configuration cache will be invalidated so that the changes will take effect during the next detection.
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `preference handoff auto` | 自动展示 AI Handoff 推荐 |
-| `preference handoff ask` | 展示 AI Handoff 推荐前先询问 |
-| `preference handoff off` | 关闭 AI Handoff 推荐 |
+| `preference handoff auto` | Automatically display AI Handoff recommendations |
+| `preference handoff ask` | Show AI Handoff Ask before recommending |
+| `preference handoff off` | Turn off AI Handoff recommendation |
 
-使用 `meegle preference handoff --help` 查看模式行为，使用 `meegle inspect preference handoff auto`（或 `ask` / `off`）查看命令级参数说明。
+Use `meegle preference handoff --help` to see mode behavior, and `meegle inspect preference handoff auto` (or `ask` / `off`) to see the command-level ParametersDescription.
 
-在偏好服务提供原子 unset 能力前，MVP 不开放 `reset`。
+MVP does not enable `reset` until the preference service provides atomic unset capability.
 
-### auth — 认证域
+### auth — Authentication domain
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `auth login` | 登录（浏览器或 `--device-code`） |
-| `auth logout` | 登出 |
-| `auth status` | 查看登录状态（会向服务端发一次校验请求，确认 token 真实可用） |
+| `auth login` | Login (browser or `--device-code`) |
+| `auth logout` | log out |
+| `auth status` | Check the login status (a verification request will be sent to the server to confirm that the token is actually available) |
 
-### config — 配置域
+### config — Configuration field
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `config init` | 初始化配置 |
-| `config show` | 查看当前配置 |
-| `config set` | 设置配置项 |
-| `config get` | 读取配置项 |
-| `config profile create\|list\|use\|current\|delete` | 管理多环境 profile |
+| `config init` | Initialize Configuration |
+| `config show` | View the current Configuration |
+| `config set` | Set Configuration items |
+| `config get` | Read Configuration items |
+| `config profile create\|list\|use\|current\|delete` | Manage multiple environment profiles |
 
-### url — URL 解析
+### url — URL parsing
 
-离线、纯本地的 URL 解析工具，不发起任何网络调用。Skill 或 pipeline 解析飞书项目/Meegle URL 时优先走本命令，拿 `url_kind` 做分支，避免从原始路径猜字段。
+An offline, purely local URL parsing tool that does not initiate any network calls. When skill or pipeline parses Feishu Project/Meegle URL, this command will be used first, and `url_kind` will be used as a branch to avoid guessing the field from the original path.
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `url decode --url <URL>` | 将 URL 解析为 `url_kind` + `simple_name` / `work_item_type` / `work_item_id` / `view_id` / `chart_id` / `query` / `redirected_from` 等字段；未识别的 URL 返回 `url_kind: "unknown"`。 |
+| `url decode --url <URL>` | Parse the URL into fields such as `url_kind` + `simple_name` / `work_item_type` / `work_item_id` / `view_id` / `chart_id` / `query` / `redirected_from`; unrecognized URL returns `url_kind: "unknown"`. |
 
-### 其他命令
+### Other commands
 
-| 命令 | 说明 |
+| Command | Description |
 |------|------|
-| `version` | 输出 CLI 版本号（`meegle --version` 是别名） |
-| `inspect [command]` | 查看命令参数详情 |
-| `completion bash\|zsh\|fish` | 生成 Shell 补全脚本 |
-| `completion install` | 自动安装 Shell 补全 |
+| `version` | Output CLI version number (`meegle --version` is an alias) |
+| `inspect [command]` | View command ParametersDetails |
+| `completion bash\|zsh\|fish` | Generate Shell completion script |
+| `completion install` | Automatically install Shell completion |
 
-## 常用示例
+## Commonly used Example
 
-### 查看待办
+### View to-do
 
 ```bash
-# 本周待办
+#To-do this week
 meegle mywork todo --action this_week --page-num 1
 
-# 已办事项
+# Things done
 meegle mywork todo --action done --page-num 1
 
-# 逾期事项
+# Overdue items
 meegle mywork todo --action overdue --page-num 1
 ```
 
-如果 `mywork todo` 返回 `get action info fail`，先刷新命令元数据：
-`meegle --refresh mywork todo --action this_week --page-num 1`。如果账号同时属于多个工作区，
-请显式传入工作区 key：
+If `mywork todo` returns `get action info fail`, refresh the command metadata first:
+`meegle --refresh mywork todo --action this_week --page-num 1`. If the account belongs to multiple workspaces at the same time,
+Please explicitly pass in the workspace key:
 `meegle mywork todo --action this_week --page-num 1 --asset-key Asset_xxx`。
 
-### 查询工作项
+### QueryWork Item
 
 ```bash
-# 查看工作项概况
+# View Work Item overview
 meegle workitem get --work-item-id 12345
 
-# 查看工作项的节点详情
+# View NodeDetails of Work Item
 meegle workflow get-node --work-item-id 12345 --need-sub-task
 ```
 
-### 批量读取工作项
+### Read Work Item in batches
 
-`workitem +batch-get` 会对每个 ID 分别调用 `workitem get` 并把结果聚合成一条响应。
-共享 flag（如 `--project-key`）会应用到每一次 per-item 调用上。命令以 `+` 开头，
-表示它是客户端侧的场景/语法糖命令，CLI 在 `get` 之上组合出批量语义，没有对应的
-单一后端接口。
+`workitem +batch-get` will call `workitem get` separately for each ID and aggregate the results into a single response.
+Shared flags (such as `--project-key`) are applied to every per-item call. The command starts with `+`,
+Indicates that it is a scenario/syntax sugar command on the client side. The CLI combines batch semantics on top of `get`, and there is no corresponding
+Single backend interface.
 
 ```bash
-# 在一次调用里传入逗号分隔的多个 ID
+# Pass in multiple IDs separated by commas in one call
 meegle workitem +batch-get --project-key PROJ --work-item-ids "12345,12346,12347"
 
-# 从文件读取 ID（每行一个，以 '#' 开头的行视为注释）
+# Read IDs from file (one per line, lines starting with '#' are treated as comments)
 meegle workitem +batch-get --project-key PROJ --ids-file ./ids.txt
 
-# 每个 item 输出一行 JSON，summary 作为最后一行
+# Output one line of JSON for each item, summary as the last line
 meegle workitem +batch-get --project-key PROJ --work-item-ids "12345,12346" -o ndjson
 ```
 
-响应结构（JSON）：
+Response structure (JSON):
 
 ```json
 {
@@ -426,93 +426,93 @@ meegle workitem +batch-get --project-key PROJ --work-item-ids "12345,12346" -o n
 }
 ```
 
-约束：单次调用最多 200 个 ID，固定 3 worker 并发。部分失败**不会**中断整批——
-请通过 `summary.failed` 或 per-item 的 `error` 字段判断；服务端返回 401 会终止整批。
+Constraints: Maximum 200 IDs in a single call, fixed 3 worker concurrency. Partial failure **doesn't** interrupt the entire batch -
+Please judge by `summary.failed` or the per-item `error` Field; returning 401 from the server will terminate the entire batch.
 
-### 创建工作项
+### CreateWork Item
 
 ```bash
-# 通过 --params 传 fields[]
+# Pass fields[] via --params
 meegle workitem create --project-key PROJ --work-item-type story \
   --params '{"fields":[
-    {"field_key":"name","field_value":"优化登录流程"},
+{"field_key":"name","field_value":"Optimize login process"},
     {"field_key":"priority","field_value":"P1"}
   ]}'
 
-# 复杂字段值（数组、嵌套 JSON）也走 --params
+# Complex Field values ​​(arrays, nested JSON) also use --params
 meegle workitem create --project-key PROJ --work-item-type story \
   --params '{"fields":[
-    {"field_key":"name","field_value":"排期任务"},
+{"field_key":"name","field_value":"scheduled task"},
     {"field_key":"schedule","field_value":[1722182400000,1722355199999]}
   ]}'
 ```
 
-### 修改字段
+### Modify Field
 
 ```bash
-# 修改工作项名称
+# Modify Work Item name
 meegle workitem update --work-item-id 12345 \
-  --params '{"fields":[{"field_key":"name","field_value":"新标题"}]}'
+--params '{"fields":[{"field_key":"name","field_value":"New title"}]}'
 
-# 同时修改多个字段
+# Modify multiple fields at the same time
 meegle workitem update --work-item-id 12345 \
   --params '{"fields":[
-    {"field_key":"name","field_value":"新标题"},
+{"field_key":"name","field_value":"new title"},
     {"field_key":"priority","field_value":"P0"}
   ]}'
 ```
 
-### 附件上传 / 下载
+### Attachment upload/download
 
-`attachment` 域把飞书项目的两段式附件协议拆成两层暴露：
+The `attachment` domain splits Feishu Project's two-stage Attachment protocol into two layers of exposure:
 
-- **基础命令**（`attachment prepare-upload` / `attachment prepare-download`）
-  返回带签名的 URL 预处理结果——适合自己写脚本做 HTTP 传输或调试分片计划。
-- **快捷命令**（`attachment +upload` / `attachment +download`）把基础预处理与
-  签名后的对象存储 HTTP POST/GET 在客户端组合成端到端流程。`+` 前缀表示这是
-  场景命令——CLI 在客户端把预处理输出与字节传输串起来。
+- **Basic commands** (`attachment prepare-upload` / `attachment prepare-download`)
+Returns signed URL preprocessing results - suitable for writing your own scripts for HTTP transmission or debugging sharding plans.
+- **Shortcut commands** (`attachment +upload` / `attachment +download`) combine basic preprocessing with
+Signed object storage HTTP POST/GET is combined into an end-to-end process on the client side. The `+` prefix indicates that this is
+Scenario Commands - The CLI concatenates preprocessing output with byte transfers on the client side.
 
-`--resource-type` 告诉后端这次上传/下载是给什么场景用：
+`--resource-type` tells the backend what scenario this upload/download is for:
 
-| `--resource-type` | 用途 |
+| `--resource-type` | Purpose |
 |-------------------|------|
-| `15` | 工作项附件字段 |
-| `16` | 工作项富文本字段里的图片 |
-| `13` | 评论附件 |
-| `14` | 评论正文里的图片 |
+| `15` | Work ItemAttachmentField |
+| `16` | Picture in Work Item Rich Text Field |
+| `13` | CommentAttachment |
+| `14` | Pictures in Comment text |
 
-**上传作用域**：每次上传需要 `--work-item-id` 或 `--work-item-type` 之一。
-**只要工作项已经存在，就优先用 `--work-item-id`**（update / comment 场景）；
-只有创建时带附件这种"工作项还不存在"的场景才用 `--work-item-type`。两者都传时，
-`--work-item-id` 胜出，`--work-item-type` 被静默丢弃。
+**Upload scope**: Each upload requires one of `--work-item-id` or `--work-item-type`.
+**As long as the Work Item already exists, `--work-item-id`** will be used first (update / comment scenario);
+Only use `--work-item-type` when creating with Attachment, such as "Work Item does not exist yet". When both are passed on,
+`--work-item-id` wins, `--work-item-type` is silently discarded.
 
 ```bash
-# 为工作项附件字段上传文件 (resource-type 15)
+# Upload files for Work ItemAttachmentField (resource-type 15)
 meegle attachment +upload ./a.pdf \
   --resource-type 15 \
   --project-key PROJ --work-item-id 12345 --field-key files_field
 
-# 创建时带附件场景 —— 工作项还不存在，用 --work-item-type
+# Create with Attachment scene - Work Item does not exist yet, use --work-item-type
 meegle attachment +upload ./a.pdf \
   --resource-type 15 \
   --project-key PROJ --work-item-type story --field-key files_field
 
-# 为富文本字段上传图片 (resource-type 16)
+# Upload images for rich text Field (resource-type 16)
 meegle attachment +upload ./diagram.png \
   --resource-type 16 \
   --project-key PROJ --work-item-id 12345 --field-key spec_field
 
-# 为评论上传附件 (resource-type 13)
+# Upload Attachment for Comment (resource-type 13)
 meegle attachment +upload ./report.pdf \
   --resource-type 13 \
   --project-key PROJ --work-item-id 12345
 
-# 为评论上传图片 (resource-type 14)
+# Upload images for Comment (resource-type 14)
 meegle attachment +upload ./screen.png \
   --resource-type 14 \
   --project-key PROJ --work-item-id 12345
 
-# 下载：把其他命令响应里的 opaque file_url 直接传进来。
+# Download: Directly pass in the opaque file_url in the response of other commands.
 URL=$(meegle workitem get --project-key PROJ --work-item-id 12345 \
         --fields files_field --format json \
       | jq -r '.fields.files_field[0].url')
@@ -521,16 +521,16 @@ meegle attachment +download "$URL" \
   --output ./local.pdf --overwrite
 ```
 
-**完整性校验（`+download`）**：`+download` 会对下载的文件做一次额外的完整性校验，
-若校验失败或无法校验则中止下载、不写任何文件。校验不通过时返回
-`CLIENT_FILE_SIGN_MISMATCH` 错误（无法校验时为 `CLIENT_FILE_SIGN_UNVERIFIED`）；
-两者都是临时问题，重试即可。
+**Integrity check (`+download`)**: `+download` will do an additional integrity check on the downloaded file.
+If the verification fails or cannot be verified, the download will be aborted and no files will be written. Returns when verification fails
+`CLIENT_FILE_SIGN_MISMATCH` error (`CLIENT_FILE_SIGN_UNVERIFIED` when it cannot be verified);
+Both are temporary issues, just try again.
 
-**自定义头 / 环境路由**：当前 profile 配置的自定义头会同时作用于下载 GET 与预处理调用，
-从而用环境路由头把整条下载固定到同一环境。GET 前会剥掉 auth 相关头，
-确保 token 不会发到对象存储所在的主机。
+**Custom header/environment routing**: The custom header of the current profile configuration will act on both download GET and preprocessing calls.
+This uses the environment routing header to pin the entire download to the same environment. The auth related header will be stripped before GET.
+Ensure that the token is not sent to the host where the object storage is located.
 
-`+upload` 输出 JSON 对象，包含 file_token 与文件元信息：
+`+upload` outputs a JSON object, including file_token and file meta information:
 
 ```json
 {
@@ -542,405 +542,405 @@ meegle attachment +download "$URL" \
 }
 ```
 
-要把结果拼到下游命令里，用 `jq` 或脚本语言提取所需字段：
+To combine the results into downstream commands, use `jq` or a scripting language to extract the required fields:
 
 ```bash
-# 评论附件 —— comment add 直接接收 file_token
+# CommentAttachment - comment add directly receives file_token
 TOKEN=$(meegle attachment +upload ./report.pdf --resource-type 13 \
         --project-key PROJ --work-item-id 12345 | jq -r '.file_token')
-meegle comment add --work-item-id 12345 --content "看附件" --file-token "$TOKEN"
+meegle comment add --work-item-id 12345 --content "See Attachment" --file-token "$TOKEN"
 ```
 
-**字段级回灌格式**（拼接 `--fields` 时参考）：
+**Field level recirculation format** (reference when splicing `--fields`):
 
-- **工作项附件字段** (`--resource-type 15`) —— `field_value` 是 JSON *字符串*，
-  解析后是 `[{"name","type","size","fileToken"}]`。注意：`fileToken` 是驼峰（其他
-  后端字段都是蛇形），`size` 是字符串不是数字。
-- **富文本字段 / 评论图片** (`--resource-type 16` / `14`) —— 图片用
-  `![name](file_url) <!-- file_token -->` 的 markdown 嵌入。
-- **评论附件** (`--resource-type 13`) —— `comment add --file-token` 直接接收
+- **Work ItemAttachmentField** (`--resource-type 15`) - `field_value` is a JSON *string*,
+After parsing, it is `[{"name","type","size","fileToken"}]`. NOTE: `fileToken` is camelCase (other
+The backend fields are all snake-shaped), and `size` is a string, not a number.
+- **Rich text Field / Comment image** (`--resource-type 16` / `14`) —— for images
+Markdown embedding of `![name](file_url) <!-- file_token -->`.
+- **CommentAttachment** (`--resource-type 13`) —— `comment add --file-token` is received directly
   `file_token`。
 
-### MQL 搜索
+### MQL Search
 
 ```bash
-# 查询空间下的 P0 需求
+# P0 requirements under Query space
 meegle workitem query --project-key PROJ \
-  --mql "SELECT \`name\`, \`priority\` FROM \`空间名\`.\`需求\` WHERE \`priority\` = 'P0'"
+--mql "SELECT \`name\`, \`priority\` FROM \`space name\`.\`Requirement\` WHERE \`priority\` = 'P0'"
 ```
 
-### 查看排期
+### Check the schedule
 
 ```bash
-# 查看团队成员排期
+# Check Team member schedule
 meegle workhour list-schedule --project-key PROJ \
   --start-time 2026-03-01 --end-time 2026-03-31 \
-  --user-keys "张三,李四,王五"
+--user-keys "Zhang San, Li Si, Wang Wu"
 ```
 
-### 查看用户信息
+### View user information
 
 ```bash
-meegle user search --user-keys "张三,李四" --project-key PROJ
+meegle user search --user-keys "Zhang San, Li Si" --project-key PROJ
 ```
 
-## 参数传递
+##Parameters passed
 
-### 基本 flag
+### Basic flag
 
-每个命令的参数通过 `--flag-name` 传递：
+Parameters for each command are passed via `--flag-name`:
 
 ```bash
 meegle workitem get --work-item-id 12345 --project-key PROJ
 ```
 
-一次调用如果缺少多个必填 flag 或位置参数，CLI 会按命令定义顺序在同一个
-`CLIENT_MISSING_REQUIRED` 错误中列出全部缺失项；只缺一个输入时仍保留原有单数文案。
+If multiple Required flags or positional Parameters are missing in one call, the CLI will use the same command in the order of command definition.
+`CLIENT_MISSING_REQUIRED` lists all missing items in the error; if only one input is missing, the original singular copy will be retained.
 
 ```text
 $ meegle workflow list-state-transitions --project-key demo --work-item-id 1 --dry-run
 missing required parameters: --user-key, --work-item-type
 ```
 
-### --set key=value（通用）
+### --set key=value (general)
 
-`--set` 是普通 flag 的**替代写法**，只影响**顶层参数**。当推断出的值类型与命令 schema 一致时，`--set key=value` 等价于 `--key value`。它适合在脚本里使用统一的 key=value 语法，或通过 dot-path 写嵌套顶层对象。合法 JSON 数字会作为精确数字保留（包括大整数、高精度小数和指数形式），`true` / `false` 会转为布尔值，其他值保持字符串。
+`--set` is an **alternative writing** for ordinary flag, and only affects **top-level Parameters**. When the inferred value Type is consistent with the command schema, `--set key=value` is equivalent to `--key value`. It is suitable for using unified key=value syntax in scripts, or writing nested top-level objects through dot-path. Legal JSON numbers are retained as exact numbers (including large integers, high-precision decimals, and exponential forms), `true` / `false` are converted to booleans, and other values ​​remain strings.
 
 ```bash
-# 下面两种等价：
+# The following two are equivalent:
 meegle mywork todo --action this_week --page-num 1
 meegle mywork todo --set action=this_week --set page_num=1
 
-# 精确保留的 JSON 数字，不经过 float64 或 int64 转换：
+# Exactly preserved JSON numbers without float64 or int64 conversion:
 --set work_item_id=9007199254740993
 
-# 不是合法 JSON 数字，因此保持字符串 "01"：
+# is not a legal JSON number, so the string "01" remains:
 --set external_id=01
 
-# dot-path 嵌套（Meegle 很少用到，但支持）：
---set extra.flag=true          # 变成 {"extra":{"flag":true}}
+# dot-path nesting (rarely used by Meegle, but supported):
+--set extra.flag=true # becomes {"extra":{"flag":true}}
 ```
 
-无论通过具名 flag、`--params` 还是 `--set` 提供，接口 schema 声明的标量数字参数都会使用相同的精确表示：`number` 接受任意合法 JSON 数字；`integer` 还要求值在数学上为整数，但不受 Go `int64` 范围限制。schema 要求标量数字或整数时，`+1`、`01` 等非 JSON 数字写法以及非数字 JSON 值会在请求发出前被拒绝。分页序号等明确的 CLI 控制参数仍会按需要做范围校验。
+Whether provided via a named flag, `--params` or `--set`, scalar numeric Parameters declared by the interface schema use the same precise representation: `number` accepts any legal JSON number; `integer` also requires that the value is mathematically an integer, but is not restricted by Go's `int64` range. When the schema requires scalar numbers or integers, non-JSON number writing such as `+1`, `01`, and non-numeric JSON values ​​will be rejected before the request is sent. Explicit CLI control Parameters such as paging sequence numbers will still perform range verification as needed.
 
-`--set` 只写**顶层参数**，**不会**写到工作项的 `fields[]`。写 `fields[]` 请用 `--params '{"fields":[...]}'`（见下）。
+`--set` only writes **top-level Parameters** and **will not** write to `fields[]` of Work Item. To write `fields[]` please use `--params '{"fields":[...]}'` (see below).
 
 ### --params JSON
 
-`--params` 接收一个 JSON 对象，**每个顶层 key 都会作为 CLI flag 合并进来**。
-顶层 key 可使用 MCP 参数的 `snake_case` 名称或 CLI flag 的 `kebab-case` 名称；
-它必须是当前命令的合法参数，而不是一份自由结构的载荷。
+`--params` receives a JSON object with each top-level key merged in as a CLI flag.
+The top-level key can use the `snake_case` name of MCP Parameters or the `kebab-case` name of CLI flag;
+It must be valid Parameters of the current command, not a free-structured payload.
 
 ```bash
-# 下面两条等价：
+# The following two are equivalent:
 meegle workitem get --work-item-id 12345 --project-key PROJ
 meegle workitem get --params '{"work_item_id":12345,"project_key":"PROJ"}'
 ```
 
-什么时候用 `--params`：
+When to use `--params`:
 
-- 值是嵌套对象或数组（`fields[]`、`schedule{}`），直接写 flag 太别扭
-- 想一次性批量传多个参数，或者从文件加载载荷（见下方 `@file.json`）
+- The value is a nested object or array (`fields[]`, `schedule{}`), writing flag directly is too awkward
+- Want to batch transfer multiple Parameters at once, or load the payload from a file (see `@file.json` below)
 
-必填的顶层参数也可以通过 `--params` 提供，效果等价于直接传入对应的 flag。
+The top-level Parameters of Required can also be provided through `--params`, which is equivalent to directly passing in the corresponding flag.
 
 ```bash
 meegle workitem create --project-key PROJ --work-item-type story \
-  --params '{"fields":[{"field_key":"name","field_value":"标题"}]}'
+--params '{"fields":[{"field_key":"name","field_value":"title"}]}'
 ```
 
-#### 常见误用：不是所有名字都是顶层 flag
+#### Common misuse: not all names are top-level flags
 
-有些**看起来像**顶层字段的值，其实是工作项的字段值，必须包在 `fields[]`
-里，而不是放在顶层。比如 `workitem update` 时，`priority` 属于工作项字段，
-不是命令的 flag：
+Some values ​​that look like top-level Fields are actually the Field values ​​of Work Item and must be wrapped in `fields[]`
+inside rather than on top. For example, when `workitem update`, `priority` belongs to Work ItemField.
+Flag that is not a command:
 
 ```bash
-# ❌ "priority" 不是 workitem update 的合法 flag —— CLI 会在 stderr 输出 warning，后端忽略
+# ❌ "priority" is not a legal flag for workitem update - the CLI will output a warning on stderr and the backend will ignore it.
 meegle workitem update --work-item-id 12345 --params '{"priority":"P1"}'
 
-# ✓ 字段值要包在 fields[] 里
+# ✓ Field values ​​should be wrapped in fields[]
 meegle workitem update --work-item-id 12345 \
   --params '{"fields":[{"field_key":"priority","field_value":"P1"}]}'
 ```
 
-不在工具声明 flag 列表里的顶层 key，在 `--dry-run` 输出里会以
-`validation.unknown_params` 列出，运行时则会向 stderr 打一行
-warning。它们仍然会被原样转发给后端（防止本地工具 schema 缓存陈旧
-误判，需要时用 `--refresh` 刷新）。
+Top-level keys that are not in the tool declaration flag list will appear as
+`validation.unknown_params` is listed, and a line will be printed to stderr when running.
+warning. They will still be forwarded to the backend unchanged (preventing local tool schema cache staleness
+Misjudgment, use `--refresh` to refresh if necessary).
 
-通过 `meegle workitem meta-fields --project-key PK --work-item-type TK`
-查询某种工作项类型下合法的 `field_key`。
+Via `meegle workitem meta-fields --project-key PK --work-item-type TK`
+Query the legal `field_key` under a certain Work ItemType.
 
-#### 从文件读取（`@file.json`）
+#### Read from file (`@file.json`)
 
-Windows 上内联 JSON 体验很糟：CMD 必须把 `"` 写成 `\"`，PowerShell 把转义反斜杠传给原生命令时还会再吞一层。给 `--params` 加 `@` 前缀即可改为从文件读取，macOS、Linux、Windows 各种 shell 都能一致工作：
+The inline JSON experience on Windows is terrible: CMD must write `"` as `\"`, and PowerShell swallows another layer when passing escaped backslashes to native commands. Add `@` prefix to `--params` to change it to read from a file. Various shells of macOS, Linux, and Windows can work consistently:
 
 ```bash
 # body.json:
-# {"fields":[{"field_key":"name","field_value":"优化登录流程"}]}
+# {"fields":[{"field_key":"name","field_value":"Optimize login process"}]}
 
 meegle workitem create --project-key PROJ --work-item-type story \
   --params @body.json
 
-# 绝对路径同样支持
+# Absolute paths are also supported
 meegle workitem update --work-item-id 12345 --params @/tmp/patch.json
 
-# PowerShell 用法相同，无需任何转义
+# PowerShell usage is the same without any escaping
 meegle workitem create --project-key PROJ --work-item-type story --params '@body.json'
 ```
 
-读取走系统默认编码，相对路径与绝对路径都接受。文件不存在会返回 `PARAM_INVALID`；文件内容不是合法 JSON 会返回 `INVALID_PARAMS_JSON`。
+The system default encoding is used for reading, and both relative paths and absolute paths are accepted. If the file does not exist, `PARAM_INVALID` will be returned; if the file content is not legal JSON, `INVALID_PARAMS_JSON` will be returned.
 
-### 优先级
+### Priority
 
-当 `--set`、`--params` 和普通 flag 同时使用时：
+When `--set`, `--params` and ordinary flag are used together:
 
-1. 普通 CLI flag 覆盖 `--params` / `--set` 中同名顶层 key
-2. `--set` 覆盖 `--params` 中同名顶层 key
+1. Ordinary CLI flag overrides the top-level key with the same name in `--params` / `--set`
+2. `--set` overwrites the top-level key with the same name in `--params`
 
-### 数组参数
+### ArrayParameters
 
-多个值用逗号分隔：
+Multiple values ​​are separated by commas:
 
 ```bash
---user-keys "张三,李四,王五"
+--user-keys "Zhang San, Li Si, Wang Wu"
 --field-keys "name,status,priority"
 ```
 
-### 布尔参数
+### Boolean Parameters
 
-直接加 flag 即为 true，不加即为 false：
+Adding flag directly means true, not adding it means false:
 
 ```bash
 meegle workflow get-node --work-item-id 12345 --need-sub-task
 ```
 
-## 全局 Flag
+## Global Flag
 
-| Flag | 缩写 | 说明 |
+| Flag | Abbreviation | Description |
 |------|------|------|
-| `--format` | `-o` | 输出格式：`json`（默认）、`table`、`ndjson`、`raw` |
-| `--select` | | 字段投影（支持 dot path） |
-| `--set` | | 设置嵌套参数（可重复） |
-| `--params` | `-P` | 完整 JSON 参数体；以 `@` 开头改为从文件读取（如 `--params @body.json`） |
-| `--dry-run` | | 只渲染请求，不实际执行 |
-| `--envelope` | | 将成功输出包装为 `{data, meta, error}` —— 后端返回 logid 时挂在 `meta.logid` |
-| `--verbose` | `-v` | 详细输出 |
-| `--profile` | | 指定配置 profile |
-| `--refresh` | | 从服务端刷新本地命令缓存（旁路 24 小时缓存） |
-| `--auto-paginate` | | 当响应包含分页信号（`next_page_token` 或 `pagination.has_more`）时自动拉取并合并所有页；列表数组会拼接，200 页安全上限与连续 3 空页保护防止失控循环 |
-| `--version` | | 输出 CLI 版本号并退出（`meegle version` 的别名） |
+| `--format` | `-o` | Output format: `json` (default), `table`, `ndjson`, `raw` |
+| `--select` | | Field projection (supports dot path) |
+| `--set` | | Set nested Parameters (repeatable) |
+| `--params` | `-P` | Complete JSON Parameters body; starting with `@` is changed to read from the file (such as `--params @body.json`) |
+| `--dry-run` | | Only render the request, not actually execute it |
+| `--envelope` | | Wrap the successful output as `{data, meta, error}` - hang on `meta.logid` when the backend returns logid |
+| `--verbose` | `-v` | Verbose output |
+| `--profile` | | Specify Configuration profile |
+| `--refresh` | | Refresh the local command cache from the server (bypasses the 24-hour cache) |
+| `--auto-paginate` | | Automatically pull and merge all pages when the response contains a paging signal (`next_page_token` or `pagination.has_more`); the List array will be spliced, with a safe upper limit of 200 pages and 3 consecutive empty page protection to prevent runaway loops |
+| `--version` | | Print CLI version number and exit (alias for `meegle version`) |
 
-只有作为独立 Flag 时，`--version` 才表示版本别名；如果前面的字符串 Flag 正在等待参数值，字面量 `--version` 会保留为该 Flag 的值。
+Only as an independent Flag, `--version` represents a version alias; if the preceding string Flag is waiting for a Parameters value, the literal `--version` will remain the value of that Flag.
 
-## 进阶用法
+## Advanced usage
 
-### 输出格式
+### Output format
 
 ```bash
-# JSON（默认）
+# JSON (default)
 meegle workitem get --work-item-id 12345
 
-# NDJSON（适合管道处理）
+# NDJSON (suitable for pipeline processing)
 meegle mywork todo --action this_week --page-num 1 -o ndjson
 
-# 表格
+# sheet
 meegle mywork todo --action this_week --page-num 1 -o table
 ```
 
-### `--select` 字段投影
+### `--select` Field projection
 
-`--select` 按 `.` 分段做字段投影；数组之后的下一段会对数组中每个元素广播（broadcast）剩余路径，并保留原来的嵌套结构。
+`--select` press `.` to perform Field projection in segments; the next segment after the array will broadcast the remaining path to each element in the array and retain the original nested structure.
 
-| 表达式 | 响应 | 投影结果 |
+| expression | response | projection result |
 |---|---|---|
 | `list` | `{"list":[{"a":1}], "total":1}` | `{"list":[{"a":1}]}` |
 | `list.a` | `{"list":[{"a":1,"b":2},{"a":3,"b":4}]}` | `{"list":[{"a":1},{"a":3}]}` |
-| `list.a,list.b` | 同上 | `{"list":[{"a":1,"b":2},{"a":3,"b":4}]}`（多路径按下标合并） |
+| `list.a,list.b` | Same as above | `{"list":[{"a":1,"b":2},{"a":3,"b":4}]}` (Multiple paths are merged by clicking the subscript) |
 | `list.work_item_info.work_item_name` | `{"list":[{"work_item_info":{"work_item_name":"x"}}]}` | `{"list":[{"work_item_info":{"work_item_name":"x"}}]}` |
-| `nodes.0` | `{"nodes":[{"id":"a"},{"id":"b"}]}` | `{"nodes":{"0":{"id":"a"}}}`（数字段按索引） |
+| `nodes.0` | `{"nodes":[{"id":"a"},{"id":"b"}]}` | `{"nodes":{"0":{"id":"a"}}}` (Number of Fields by index) |
 
 ```bash
-# 顶层选择
+# Top level selection
 meegle workitem get --work-item-id 12345 --select "id,name,status"
 
-# 跨数组广播 —— 从嵌套记录里提取字段
+# Broadcast across arrays - extract Field from nested records
 meegle mywork todo --action done --page-num 1 \
   --select "list.work_item_info.work_item_name,list.state_info.end_state_key_name"
 
-# 顶层元数据 + 广播混合 —— total 和投影后的 list 记录会同时保留
+# Top-level metadata + broadcast mixing - total and projected list records will be retained at the same time
 meegle mywork todo --action done --page-num 1 \
   --select "total,list.work_item_info.work_item_name"
 ```
 
-### 元数据保留
+### Metadata retention
 
-默认渲染下，响应的完整结构在所有 `--format` 中都会保留：列表接口返回的 `{"list":[...], "total":N, "pagination":{...}}` 原样呈现 —— 即使你没有在 `--select` 中点名，`total` / `pagination` 这些元数据字段依然可见。要钻到具体记录就显式用 `--select`（配合上面的广播语法）。`--format table` 和 `--format ndjson` 下，形如 `{"list":[...]}` 的单键包装（没有兄弟元数据）仍然会被无损展开成行展示。
+Under default rendering, the complete structure of the response will be preserved in all `--format`: the `{"list":[...], "total":N, "pagination":{...}}` returned by the List interface is rendered as is - even if you do not name it in `--select`, the `total` / `pagination` metadata fields are still visible. To drill down to a specific record, explicitly use `--select` (with the broadcast syntax above). Under `--format table` and `--format ndjson`, single-key wrappers of the form `{"list":[...]}` (without sibling metadata) will still be losslessly expanded into rows for display.
 
-### 通过 `--envelope` 拿到 logid
+### Get logid through `--envelope`
 
-遇到"返回 success 但实际没生效"、"输出不符合预期"等情况，需要让 oncall
-按 logid 反查具体调用时，加上 `--envelope`：
+When encountering situations such as "returning success but not actually taking effect" or "the output does not meet expectations", you need to let oncall
+When checking specific calls by logid, add `--envelope`:
 
 ```bash
 meegle workflow update-node --work-item-id 12345 \
   --set node_schedule.points=10 --envelope
 ```
 
-成功输出会被包装为 `{data, meta, error}`，后端返回 logid 时挂在
-`meta.logid` 里——把这个 id 交给 oncall 就能在 argos 定位到这次请求。
-不加 `--envelope` 时 logid 会被抑制，保持默认输出干净便于管道处理。
+Successful output will be packaged as `{data, meta, error}`, and the backend will hang on when returning logid
+In `meta.logid` - give this id to oncall to locate this request in argos.
+Logid will be suppressed when `--envelope` is not added, keeping the default output clean for pipeline processing.
 
-AI Handoff 的 Config、Preference、Create Link 响应也会把网关响应头 `x-tt-logid`
-写入 `meta.logid`：成功时仅在指定 `--envelope` 后展示，失败时自动进入结构化错误
-envelope，无需开启 debug 日志。
+AI Handoff's Config, Preference, and Create Link responses will also add the gateway response header `x-tt-logid`
+Write `meta.logid`: only displayed after specifying `--envelope` on success, and automatically enter structured error on failure
+envelope, no need to enable debug log.
 
 ### Dry Run
 
-有副作用的命令先用 `--dry-run` 预览请求再执行：
+For commands with side effects, use `--dry-run` to preview the request before executing it:
 
 ```bash
 meegle workitem create --project-key PROJ --work-item-type story \
-  --params '{"fields":[{"field_key":"name","field_value":"测试"}]}' --dry-run
+--params '{"fields":[{"field_key":"name","field_value":"test"}]}' --dry-run
 ```
 
-### 命令内省
+### Command introspection
 
-用 `inspect` 查看任意命令的完整参数信息：
+Use `inspect` to view the complete Parameters information of any command:
 
 ```bash
-# 列出所有命令
+# List all commands
 meegle inspect
 
-# 查看特定命令的参数详情
+# View ParametersDetails of a specific command
 meegle inspect workitem.create
 ```
 
-### 程序化命令字符串
+### Programmed command string
 
-通过 Go 命令字符串 SDK 嵌入调用时，可以用 `\n` 表示换行。例如
-`--content "第一段\n\n第二段"` 会把两个段落传给命令。若需要传递字面量
-字符 `\n`，请写成 `\\n`；不支持的转义序列会保留反斜杠。
+When calling via the Go command string SDK embed, you can use `\n` to represent a newline. For example
+`--content "First paragraph\n\nSecond paragraph"` will pass two paragraphs to the command. If you need to pass a literal
+Character `\n`, please write `\\n`; unsupported escape sequences retain backslashes.
 
-该解码只作用于 `CommandClient.Execute`、`ExecuteCommandString` 等程序化
-命令字符串入口。`meegle` 二进制直接接收 shell 解析后的参数数组，因此仍遵循
-对应 shell 的引号和转义规则。
-供 Facade 远程 RPC 调用的命令字符串 Go SDK 只注册 MCP 动态发现命令。
-`ai-handoff`、`preference handoff` 等本地 CLI API 命令只在 npm 分发的
-`meegle` CLI 中提供；直接调用 `CallTool` 时也仍然只访问 MCP tool。
+This decoding only works for `CommandClient.Execute`, `ExecuteCommandString` and other programmatic
+Command string entry. The `meegle` binary directly receives the Parameters array parsed by the shell, so it still follows
+Corresponds to shell quoting and escaping rules.
+Command string for Facade remote RPC calls The Go SDK only registers MCP dynamic discovery commands.
+Local CLI API commands such as `ai-handoff` and `preference handoff` are only distributed in npm
+Provided in the `meegle` CLI; when calling `CallTool` directly, only the MCP tool is still accessed.
 
-## 认证
+## Authentication
 
-### 浏览器登录（默认）
+### Browser login (default)
 
 ```bash
 meegle auth login
 ```
 
-自动打开浏览器完成 OAuth 授权。如果浏览器未打开，终端会显示授权地址，手动复制即可。
+Automatically open the browser to complete OAuth authorization. If the browser is not open, the terminal will display the authorization address, which can be copied manually.
 
-### Device Code 登录（无浏览器环境）
+### Device Code login (no browser environment)
 
 ```bash
 meegle auth login --device-code
 ```
 
-终端显示二维码和授权码，使用手机扫码授权。适用于 SSH 远程服务器等无浏览器环境。
+The terminal displays the QR code and authorization code. Use your mobile phone to scan the code for authorization. Suitable for browser-less environments such as SSH remote servers.
 
-### 其他认证命令
+### Other Authentication commands
 
 ```bash
-# 查看登录状态（会向服务端发一次轻量 tools/list 调用校验 token，可作为
-# cron 任务的 preflight）
+# Check the login status (a lightweight tools/list call verification token will be sent to the server, which can be used as
+# preflight for cron tasks)
 meegle auth status
 
-# 登出
+# Sign out
 meegle auth logout
 ```
 
-`auth status` 退出码与 `reason` 字段配合，让 cron / CI preflight 脚本
-不用解析人类可读文本即可分支处理：
+The `auth status` exit code is used in conjunction with the `reason` Field to enable cron/CI preflight scripts
+Branch processing without parsing human-readable text:
 
-| 退出码 | `reason` | 含义 | 建议动作 |
+| Exit code | `reason` | Meaning | Recommended action |
 |--------|----------|------|----------|
-| 0      | —        | 本地有 token 且服务端校验通过 | 继续执行 |
-| 1      | `no local token` | 本地无 token | 执行 `meegle auth login` |
-| 1      | `token rejected by server` | token 已过期或被撤销（refresh 也救不回来） | 执行 `meegle auth login` |
-| 2      | `server unreachable: <err>` | 网络、超时、5xx —— 调用本身失败 | 稍后重试，不要重新登录 |
+| 0 | — | There is token locally and the server verification passes | Continue execution |
+| 1 | `no local token` | No local token | Execute `meegle auth login` |
+| 1 | `token rejected by server` | The token has expired or been revoked (refresh cannot restore it) | Execute `meegle auth login` |
+| 2 | `server unreachable: <err>` | Network, timeout, 5xx - the call itself failed | Try again later, do not log in again |
 
-JSON 输出示例（`auth status --format json`），token 被拒：
+JSON output Example (`auth status --format json`), token rejected:
 
 ```json
 {"authenticated": false, "host": "meegle.com", "reason": "token rejected by server"}
 ```
 
-对于 `meegle auth login` 管理的凭据，共用同一 profile 的多个 CLI 进程会串行执行
-token refresh。无效的刷新响应不会覆盖原凭据，旧进程晚到的 401 也不会清除其他进程
-刚刷新成功的新 token。
+For credentials managed by `meegle auth login`, multiple CLI processes sharing the same profile will execute serially
+token refresh. An invalid refresh response will not overwrite the original credentials, and a late 401 from the old process will not clear other processes.
+The new token has just been refreshed successfully.
 
-## 配置
+## Configuration
 
-### 配置文件
+### Configuration file
 
-配置存储在 `~/.meegle/config.json`：
+Configuration is stored in `~/.meegle/config.json`:
 
 ```bash
-# 初始化配置
+#Initialize Configuration
 meegle config init
 
-# 查看当前配置
+# View the current Configuration
 meegle config show
 
-# 修改单个配置项
+# Modify a single Configuration item
 meegle config set host project.feishu.cn
 
-# 查看单个配置项
+# View a single Configuration item
 meegle config get host
 ```
 
-主要配置项：
+Main Configuration items:
 
-| 字段 | 说明 | 示例 |
+| Field | Description | Example |
 |------|------|------|
-| `host` | 站点域名 | `project.feishu.cn`、`meegle.com` |
-| `user_access_token` | 用户访问令牌，支持 `${VAR}` 从环境变量读取 | `${CI_MEEGLE_TOKEN}` |
-| `access_token_header` | 自定义承载 token 的 HTTP header 名；置空则用默认的 `Authorization: Bearer <token>` | `x-meegle-auth` |
-| `user_agent` | 追加到 `User-Agent` 的 caller 段（形如 `meegle-cli/<ver> <user_agent>`）；支持 `${VAR}` 模板；被环境变量 `MEEGLE_USER_AGENT` 覆盖 | `my-service/1.0` |
+| `host` | Site domain name | `project.feishu.cn`, `meegle.com` |
+| `user_access_token` | User access token, supports `${VAR}` to be read from environment variables | `${CI_MEEGLE_TOKEN}` |
+| `access_token_header` | Customize the HTTP header name that carries the token; leave it blank to use the default `Authorization: Bearer <token>` | `x-meegle-auth` |
+| `user_agent` | Appended to the caller section of `User-Agent` (in the form of `meegle-cli/<ver> <user_agent>`); supports `${VAR}` template; overridden by environment variable `MEEGLE_USER_AGENT` | `my-service/1.0` |
 
-### 沙盒 / CI：直接注入环境变量
+### Sandbox/CI: Inject environment variables directly
 
-CLI 会直接读取以下约定名环境变量，无需执行任何 `config set`：
+The CLI will directly read the following conventionally named environment variables without executing any `config set`:
 
 ```bash
 export MEEGLE_HOST=project.feishu.cn
 export MEEGLE_USER_ACCESS_TOKEN=<your-user-token>
-export MEEGLE_USER_AGENT=ci-runner  # 可选；追加到 User-Agent，优先级高于 config.user_agent
-export MEEGLE_AI_HANDOFF=disabled   # 可选；在本地硬禁用 AI Handoff
+export MEEGLE_USER_AGENT=ci-runner # Optional; append to User-Agent, with higher priority than config.user_agent
+export MEEGLE_AI_HANDOFF=disabled # Optional; hard disable AI Handoff locally
 meegle workitem get --work-item-id 123
 ```
 
-各变量可以单独设置。当 `MEEGLE_USER_ACCESS_TOKEN` 设置时，CLI 不访问 keychain，401 错误不会自动 refresh，由调用方自行轮转。仅设置 `MEEGLE_HOST`（不带 token）时仍走 keychain 中存储的凭证。`MEEGLE_AI_HANDOFF=disabled` 只是本地禁用门禁，不修改 profile 配置。
+Each variable can be set independently. When `MEEGLE_USER_ACCESS_TOKEN` is set, the CLI does not access the keychain, and 401 errors are not automatically refreshed and are rotated by the caller. When only setting `MEEGLE_HOST` (without token), the credentials stored in the keychain are still used. `MEEGLE_AI_HANDOFF=disabled` only disables access control locally and does not modify the profile Configuration.
 
-### 自定义 Auth Header
+### Custom Auth Header
 
-默认情况下 token 通过标准 `Authorization: Bearer <token>` 发送。若后端要求把 token 放到别的 header 里（且不允许带 `Authorization`），用 `access_token_header` 切换：
+By default tokens are sent via the standard `Authorization: Bearer <token>`. If the backend requires the token to be placed in another header (and `Authorization` is not allowed), use `access_token_header` to switch:
 
 ```bash
 meegle config set access_token_header x-meegle-auth
 ```
 
-或通过环境变量临时覆盖：
+Or temporarily override via environment variables:
 
 ```bash
 export MEEGLE_ACCESS_TOKEN_HEADER=x-meegle-auth
 ```
 
-启用后 CLI 会以 `<header>: <token>` 发送裸值（无 `Bearer ` 前缀），并且**完全不发送** `Authorization` header —— 适用于对两种 header 共存敏感的后端。
+When enabled the CLI will send bare values ​​(without the `Bearer` prefix) as `<header>: <token>` and **not send** the `Authorization` header at all - suitable for backends sensitive to the coexistence of both headers.
 
-### 环境变量模板
+### Environment variable template
 
-如果平台使用的环境变量名不是 `MEEGLE_*`，可以在 config.json 中用 `${VAR}` 占位符绑定任意字符串字段，运行时会用同名环境变量的值替换。这样既能避免在 config.json 里明文写敏感值，也能适配不同容器/CI 平台各自的变量命名习惯。
+If the environment variable name used by the platform is not `MEEGLE_*`, you can use the `${VAR}` placeholder in config.json to bind any string Field, which will be replaced with the value of the environment variable of the same name at runtime. This not only avoids writing sensitive values ​​in plain text in config.json, but also adapts to the variable naming habits of different containers/CI platforms.
 
 ```json
 {
@@ -952,92 +952,92 @@ export MEEGLE_ACCESS_TOKEN_HEADER=x-meegle-auth
 }
 ```
 
-规则：
-- 仅识别**整串形态**的占位符。`"${X}"` 会被展开；`"Bearer ${X}"` 按字面量处理，不展开。
-- 引用的环境变量未设置或为空时，需要凭证的业务命令会 **fail fast**，错误信息会带上字段路径和变量名；`--help`、`version`、`auth login --help`、`config set` 等自救入口仍可运行，方便修复 profile。
-- 当配置了 `user_access_token` 时，它会覆盖 `meegle auth login` 在本地 keychain 里写入的令牌。由于这种模式下没有本地 refresh 能力，服务端返回 401 时需要自行轮转环境变量值。
+rule:
+- Only placeholders for **whole string patterns** are recognized. `"${X}"` will be expanded; `"Bearer ${X}"` will be treated as literal and not expanded.
+- When the referenced environment variable is not set or is empty, the business command that requires credentials will fail fast, and the error message will include the field path and variable name; self-rescue portals such as `--help`, `version`, `auth login --help`, `config set`, etc. can still be run to facilitate profile repair.
+- When `user_access_token` is configured, it will overwrite the token written by `meegle auth login` in the local keychain. Since there is no local refresh capability in this mode, the server needs to rotate the environment variable values ​​by itself when returning 401.
 
-### 多环境 Profile
+### Multi-environment Profile
 
-支持管理多个环境配置（不同站点、不同账号），每个 profile 独立存储 host 和认证信息。
+Supports management of multiple environment configurations (different sites, different accounts), and each profile independently stores host and Authentication information.
 
 ```bash
-# 创建新环境（交互式引导 host 选择 + 登录）
+# Create new environment (interactive boot host selection + login)
 meegle config profile create staging
 
-# 查看所有环境
+# View all environments
 meegle config profile list
 
-# 切换默认环境
+#Switch default environment
 meegle config profile use staging
 
-# 查看当前环境
+# Check the current environment
 meegle config profile current
 
-# 临时使用其他环境（不改变默认）
+# Temporarily use other environments (without changing the default)
 meegle mywork todo --action this_week --page-num 1 --profile staging
 
-# 删除环境
+# Delete environment
 meegle config profile delete staging
 ```
 
-## 企业 CLI 扩展
+## Enterprise CLI extension
 
-企业可以直接依赖本 Go Module，注册可信的进程内适配器并构建自己的 `meegle` 二进制，无需修改官方仓库。V1 提供三个扩展点：
+Enterprises can rely directly on this Go Module, register trusted in-process adapters and build their own `meegle` binaries without modifying the official repository. V1 provides three extension points:
 
-- `extension/credential` 选择账号，并提供现有的 Meegle 用户 Token。已知的本地/自救命令在启动时不会调用 Credential Provider，因此慢 OIDC Provider 不会阻塞帮助、版本、配置修复、补全、URL 解析或扩展诊断；需要身份的命令仍会解析 Provider，任何 Provider 错误都会 fail-closed。
-- `extension/transport` 观察或阻断 CLI HTTP 请求，同时保留重定向和 TLS 防降级约束。Provider 和 Hook 回调有 30 秒安全超时，但真实 MCP、OAuth 和附件请求继续使用调用方 Context 与原 HTTP Client timeout，因此启用扩展不会截断大文件上传下载或慢服务端操作；可信的进程内前置 Hook 会看到注入凭证后的真实请求，技术上可以修改认证 Header，CLI 不提供进程内隔离也不会冻结 Header 值；后置 Hook 只接收 `Body=http.NoBody`、TLS 状态也已复制的隔离元数据快照，阻塞的 Hook 不会消费、占住或修改真实响应流；携带默认 Bearer 或自定义 Token Header 的 MCP 请求都保留 10 跳上限，且不会被重定向到原始精确 origin 之外。
-- `extension/platform` 观察、包装或限制静态命令和 MCP 动态发现命令。插件元数据/Install 和每个 Startup Hook 都有两秒安全边界；fail-open 插件超时后跳过，fail-closed 会终止 CLI，迟到注册会被忽略。Restrict 插件必须 fail-closed；手写插件如果同时声明 `Restricts=true` 和 `FailurePolicy=FailOpen`，CLI 会启动失败，不会静默跳过策略。
+- `extension/credential` Select the account and provide the existing Meegle user token. Known local/self-rescue commands do not call the Credential Provider on startup, so slow OIDC Providers do not block help, versioning, Configuration fixes, completions, URL parsing, or extended diagnostics; commands that require identity will still resolve the Provider, and any Provider errors will fail-closed.
+- `extension/transport` observes or blocks CLI HTTP requests while preserving redirection and TLS anti-downgrade constraints. Provider and Hook callbacks have a 30-second security timeout, but real MCP, OAuth and Attachment requests continue to use the caller Context and the original HTTP Client timeout, so enabling the extension will not truncate large file uploads and downloads or slow server operations; a trusted in-process front Hook will see the real request after the credentials are injected, and technically the Authentication Header can be modified. The CLI does not provide in-process isolation and will not freeze the Header value; the post Hook only receives `Body=http.NoBody`, TLS State has also copied the isolation metadata snapshot, and the blocked Hook will not consume, occupy or modify the real response stream; MCP requests carrying the default Bearer or custom Token Header retain the 10-hop limit and will not be redirected outside the original precise origin.
+- `extension/platform` observes, wraps or restricts static commands and MCP dynamic discovery commands. Plug-in metadata/Install and each Startup Hook have a two-second safety boundary; fail-open plug-ins will be skipped after timeout, fail-closed will terminate the CLI, and late registrations will be ignored. The Restrict plug-in must be fail-closed; if the handwritten plug-in declares `Restricts=true` and `FailurePolicy=FailOpen` at the same time, the CLI will fail to start and will not silently skip the policy.
 
-企业插件声明 `RequireCLI` 时，入口应调用 `cmd.ExecuteWithVersion(version)`；`cmd.Execute()` 仍是兼容的默认入口。`dev` 构建会按设计拒绝版本约束，兼容性错误会提示改用 `ExecuteWithVersion`，不会绕过 fail-closed 校验。扩展在编译时链接，不支持运行时下载插件；SDK 也不会加载 CLI 的全局扩展注册表。完整用法见[扩展示例](./examples/README.md)和[架构契约](./docs/design/CLI-EXTENSION-ARCHITECTURE.md)。
+When an enterprise plugin declares `RequireCLI`, the entry should call `cmd.ExecuteWithVersion(version)`; `cmd.Execute()` is still the compatible default entry. The `dev` build will reject version constraints by design, and compatibility errors will prompt you to use `ExecuteWithVersion` instead, which will not bypass the fail-closed check. Extensions are linked at compile time and do not support downloading plug-ins at runtime; the SDK does not load the CLI's global extension registry. For complete usage, see [Extended Example](./examples/README.md) and [Architecture Contract](./docs/design/CLI-EXTENSION-ARCHITECTURE.md).
 
-扩展版二进制可通过 `meegle extension doctor|credentials|transport|plugins|policy|discovery` 查看脱敏后的诊断信息。Credential 与 Transport 诊断会区分 `not-evaluated`、`active`、`failed`，离线诊断不会为了显示状态而重新调用 Provider。Restrict 同样治理这些命令；需要保留排障入口时，readonly Allow 列表应包含 `extension/**`。
-Policy 拒绝遵循显式结构化输出格式，并使用稳定错误码 `CLIENT_COMMAND_DENIED`。CLI App 构造前发生的 Credential 与 Platform 失败也遵循显式 JSON/NDJSON 输出，分别暴露 `CLIENT_CREDENTIAL_RESOLUTION_FAILED` 或 `CLIENT_EXTENSION_INSTALL_FAILED`，不会退化成纯文本。
-扩展回调返回的 error 和 panic 值会留在受保护的 Go 错误链边界内；自定义 `Is`、`As`、`Unwrap`、`Error` 或错误载荷方法不能让 CLI 崩溃，panic 细节也不会进入公开输出。扩展仍属于进程内可信代码，实现方应返回普通且遵守 Context 的错误。
-所有 JSON-RPC 响应都会在解码前限制大小：`tools/list` 使用 8 MiB 的发现上限，其他调用使用每次响应 32 MiB 的通用上限。
-动态发现支持 `"type": ["string", "null"]` 这类 nullable JSON Schema，并在 CLI/SDK 中按其非 null 类型注册参数。包含多个非 null 类型的 union 会被单项隔离，并输出稳定的 `unsupported_schema_union` 诊断，不影响其他工具。
+The extended version binary can view desensitized diagnostic information through `meegle extension doctor|credentials|transport|plugins|policy|discovery`. Credential and Transport diagnostics will distinguish between `not-evaluated`, `active`, and `failed`. Offline diagnosis will not re-call the Provider in order to display the State. Restrict also handles these commands; when troubleshooting needs to be retained, the readonly Allow List should contain `extension/**`.
+Policy refuses to follow the explicit structured output format and uses stable error code `CLIENT_COMMAND_DENIED`. Credential and Platform failures that occur before CLI App construction also follow explicit JSON/NDJSON output, exposing `CLIENT_CREDENTIAL_RESOLUTION_FAILED` or `CLIENT_EXTENSION_INSTALL_FAILED` respectively, and will not degrade into plain text.
+Error and panic values ​​returned by extended callbacks stay within the boundaries of the protected Go error chain; custom `Is`, `As`, `Unwrap`, `Error` or error payload methods cannot crash the CLI, and panic details do not enter the public output. Extensions still belong to in-process trusted code, and implementers should return ordinary and Context-compliant errors.
+All JSON-RPC responses are size-limited before decoding: `tools/list` uses a discovery cap of 8 MiB, other calls use a general cap of 32 MiB per response.
+Dynamic discovery supports nullable JSON Schema such as `"type": ["string", "null"]`, and registers Parameters according to its non-null Type in the CLI/SDK. Unions containing multiple non-null Types will be isolated by a single item and output stable `unsupported_schema_union` diagnostics without affecting other tools.
 
-## 常见问题
+## FAQ
 
-### 命令列表为空
+### Command List is empty
 
-CLI 启动时会从服务端获取可用命令列表。如果网络不通或未登录，动态命令不会注册。请先确保已登录：
+When the CLI is started, it will obtain the available command list from the server. If the network is unavailable or you are not logged in, the dynamic command will not be registered. Please make sure you are logged in first:
 
 ```bash
 meegle auth login
 ```
 
-命令列表会自动缓存，过期后在后台静默刷新，不影响使用。
-当服务端命令发现失败且没有可用缓存时，`auth`、`config`、`inspect`、`completion`、`url` 等本地命令仍会正常启动；动态业务命令会返回 `TOOL_DISCOVERY_FAILED` 服务端错误，直到网络恢复。
+The command list will be automatically cached and will be refreshed silently in the background after expiration without affecting use.
+When the server command discovery fails and there is no available cache, local commands such as `auth`, `config`, `inspect`, `completion`, `url` and other local commands will still start normally; dynamic business commands will return a `TOOL_DISCOVERY_FAILED` server error until the network is restored.
 
-## 安全与风险提示
+## Safety and Risk Tips
 
-本工具被设计为可由 AI Agent 调用来自动化 Meegle 操作，这本身就带有模型幻觉、执行不可控、提示词注入等固有风险。一旦你授予了 Meegle 访问权限，Agent 就会在授权范围内以你的用户身份行事，可能完成字段更新、状态流转、工作项创建等高影响操作，使用前请充分评估。
+This tool is designed to be called by AI Agent to automate Meegle Operation, which itself has inherent risks such as model illusion, uncontrollable execution, and prompt word injection. Once you grant Meegle access permissions, the Agent will act as your user within the scope of authorization and may complete high-impact operations such as FieldUpdate, State transfer, and Work ItemCreate. Please fully evaluate before use.
 
-推荐的风险控制手段：
+Recommended risk control measures:
 
-- 有副作用的命令先用 `--dry-run` 预览请求再正式执行
-- 给 Agent 专用 profile（`meegle config profile create`），便于单独审计和吊销
-- CI 或共享环境优先使用短期环境变量 token（`MEEGLE_USER_ACCESS_TOKEN`），401 时自行轮换；不要放松默认安全设置
+- For commands with side effects, use `--dry-run` to preview the request before executing it officially.
+- Give Agent a dedicated profile (`meegle config profile create`) to facilitate separate auditing and revocation
+- CI or shared environments prefer to use short-term environment variable token (`MEEGLE_USER_ACCESS_TOKEN`), which will rotate automatically when 401 occurs; do not relax the default security settings
 
-使用本工具即视为你自愿承担由此带来的全部相关责任。
+By using this tool, you voluntarily assume all related responsibilities.
 
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=larksuite/meegle-cli&type=Date)](https://star-history.com/#larksuite/meegle-cli&Date)
 
-## 贡献
+## contribute
 
-欢迎社区贡献。Bug 反馈或功能建议请提 [Issue](https://github.com/larksuite/meegle-cli/issues) 或 [Pull Request](https://github.com/larksuite/meegle-cli/pulls)。对于较大改动，建议先通过 Issue 讨论。
+Community contributions are welcome. Please submit bug feedback or feature suggestions to [Issue](https://github.com/larksuite/meegle-cli/issues) or [Pull Request](https://github.com/larksuite/meegle-cli/pulls). For larger changes, it is recommended to discuss them through Issues first.
 
 ## License
 
-本项目基于 **MIT 许可证** 开源。
+This project is open source based on **MIT License**.
 
-该软件运行时会调用 Lark/飞书开放平台的 API，使用这些 API 需要遵守如下协议和隐私政策：
+When the software is running, it will call the API of the Lark/Feishu open platform. The use of these APIs needs to comply with the following agreement and privacy policy:
 
-- [飞书用户服务协议](https://www.feishu.cn/terms)
-- [飞书隐私政策](https://www.feishu.cn/privacy)
-- [飞书开放平台应用服务商安全管理规范](https://open.feishu.cn/document/uAjLw4CM/uMzNwEjLzcDMx4yM3ATM/management-practice/app-service-provider-security-management-specifications)
+- [Feishu User Service Agreement](https://www.feishu.cn/terms)
+- [Feishu Privacy Policy](https://www.feishu.cn/privacy)
+- [Feishu Open Platform Application Service Provider Security Management Specifications](https://open.feishu.cn/document/uAjLw4CM/uMzNwEjLzcDMx4yM3ATM/management-practice/app-service-provider-security-management-specifications)
 - [Lark User Terms of Service](https://www.larksuite.com/user-terms-of-service)
 - [Lark Privacy Policy](https://www.larksuite.com/privacy-policy)

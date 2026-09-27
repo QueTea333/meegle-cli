@@ -1,121 +1,121 @@
-# 附件域
+# Attachment field
 
-## 核心边界
+## Core Boundary
 
-工作项附件有三个独立阶段：**上传文件到对象存储 → 把文件对象写入目标字段 → 回读目标字段验收**。上传成功不等于字段写入成功；只有三步都完成，才可以向用户宣称附件已写入。
+Work item attachment has three independent stages: **Upload file to object storage → Write file object to target field → Read back target field for acceptance**. Successful uploading does not mean successful field writing; only when all three steps are completed can the user be informed that the attachment has been written.
 
-附件上传/下载底层分两步：先调 `attachment prepare-upload` / `attachment prepare-download` 申请带签名的对象存储 URL，再与对象存储做一次或多次 HTTP 直连。
+The bottom layer of attachment uploading/downloading is divided into two steps: first call `attachment prepare-upload` / `attachment prepare-download` to apply for a signed object storage URL, and then make one or more direct HTTP connections with the object storage.
 
-`attachment prepare-upload` 的返回结果可能包含 `target_unit_code`；自行对对象存储发起上传时，若该值非空，必须在每次 POST（包括所有上传分片）添加 `x-target-unit`，值原样使用该 `target_unit_code`；缺失或为空时不添加该请求头。`attachment prepare-download` 的返回结果同样可能包含 `target_unit_code`；自行下载时，若该值非空，必须在每次 GET（包括所有下载分片）添加同样的 `x-target-unit`，值原样使用该 `target_unit_code`；缺失或为空时不添加该请求头。
+The return result of `attachment prepare-upload` may contain `target_unit_code`; when initiating an upload to the object storage by yourself, if the value is not empty, `x-target-unit` must be added to each POST (including all uploaded fragments), and the value of `target_unit_code` will be used as it is; if it is missing or empty, the request header will not be added. The return result of `attachment prepare-download` may also contain `target_unit_code`; when downloading by yourself, if the value is not empty, the same `x-target-unit` must be added to each GET (including all downloaded fragments), and the value of `target_unit_code` will be used as it is; if it is missing or empty, the request header will not be added.
 
-Meegle CLI 内置 `attachment +upload` / `attachment +download` 一键封装，把两步合成一条命令；脚本里需要逐步控制时也可单独调上面的 prepare 命令。
-## 写入前门禁
+Meegle CLI has built-in `attachment +upload` / `attachment +download` one-click encapsulation, combining the two steps into one command; when step-by-step control is required in the script, the above prepare command can also be adjusted separately.
+## Write front access control
 
-### 1. 校验本地文件
+### 1. Verify local files
 
-- 对用户点名的每个路径逐一确认：文件存在、是普通文件、可读，且 basename 与用户要求一致。
-- 本地文件不存在时立即停止并请用户补充或确认。**禁止自动替换成同名的其他文件，禁止擅自替换文件扩展名**（例如请求 `ad.png` 时改传 `ad.mp4`）。
+- Confirm each path named by the user one by one: the file exists, is a normal file, is readable, and the basename is consistent with the user's requirements.
+- Stop immediately when the local file does not exist and ask the user to add or confirm. **It is prohibited to automatically replace other files with the same name, and it is prohibited to replace file extensions without authorization** (for example, when requesting `ad.png`, pass `ad.mp4` instead).
 
-### 2. 目标字段消歧
+### 2. Target field disambiguation
 
-每次都必须针对**当前空间 + 当前工作项类型**调用 `workitem meta-fields`，使用 `field_types=["file","multi-file"]`、`page_num=1` 实时查询附件字段；若返回 `pagination.has_more=true`，继续递增页码，直到收集完所有页后再消歧。然后按以下顺序确定目标：
+Each time `workitem meta-fields` must be called for **current space + current work item type**, use `field_types=["file","multi-file"]`, `page_num=1` to query attachment fields in real time; if `pagination.has_more=true` is returned, continue to increment the page number until all pages are collected before disambiguating. Then identify goals in the following order:
 
-1. 用户明确给出字段 key：只接受精确 key 匹配。
-2. 用户明确给出字段名：只接受精确字段名匹配；模糊结果只能用于展示候选。字段名精确匹配后仍有多个候选时，列出每个候选的 key 和类型，让用户按 key 选择。
-3. 用户只说“附件”：若仅有一个候选可直接使用；若有多个候选，列出字段名、key、类型并让用户选择。
+1. The user explicitly gives the field key: only exact key matching is accepted.
+2. The user explicitly gives the field name: only exact field name matches are accepted; fuzzy results can only be used to display candidates. If there are still multiple candidates after exact matching of field names, list the key and type of each candidate and let the user select by key.
+3. The user only says "attachment": If there is only one candidate, you can use it directly; if there are multiple candidates, list the field name, key, and type and let the user choose.
 
-禁止选择第一个候选，禁止复用历史会话中的字段，禁止把 `attachment` 或 `multi_attachment` 当作固定 key。执行前记录 `target_field_key`、字段名和 `field_type`，后续上传、写入与验收必须始终使用同一个 key。
+It is forbidden to select the first candidate, to reuse fields from historical sessions, and to treat `attachment` or `multi_attachment` as fixed keys. Record the `target_field_key`, field name and `field_type` before execution. The same key must always be used for subsequent uploading, writing and acceptance.
 
-元数据中存在某字段，只能证明 API 可以识别它，**不能证明该字段已放入用户当前详情页布局或在 UI 可见**。没有布局查询能力时，应明确把结论限定为“API 目标字段写入并回读成功”。
+The existence of a certain field in metadata can only prove that the API can recognize it, but it cannot prove that the field has been put into the user's current details page layout or is visible in the UI. When there is no layout query capability, the conclusion should be clearly limited to "the API target field is written and read back successfully."
 
-### 3. 区分字段协议
+### 3. Differentiate field protocols
 
-`file` 与 `multi-file` 不是可无条件互换的协议：
+`file` and `multi-file` are not unconditionally interchangeable protocols:
 
-- `multi-file` 使用 stringified 文件对象数组，支持按下文协议维护多个附件。
-- `file` 可能是旧版或单附件字段；只有当前空间的实际写入与回读已经验证其行为时，才可按其已验证能力操作。不得仅凭字段名或历史经验宣称它支持多附件。
-- `workitem get` 回读的文件对象可能比上传结果多出 `uid`、`url` 或其他服务端字段。后续合并时必须原样保留这些未知字段，不能把旧对象降级为只有 `name/type/size/fileToken` 的简化对象。
+- `multi-file` uses an array of stringified file objects to support maintaining multiple attachments according to the following protocol.
+- `file` may be a legacy or single-attachment field; only operate on its proven capabilities if actual writes and readbacks of the current space have verified its behavior. Do not claim that it supports multiple attachments based solely on field names or historical experience.
+- The file object read back by `workitem get` may have more `uid`, `url` or other server-side fields than the upload result. These unknown fields must be retained intact during subsequent merges, and the old object cannot be downgraded to a simplified object with only `name/type/size/fileToken`.
 
-## 端到端写入协议
+## End-to-end writing protocol
 
-上传成功后，把返回值映射为字段对象：
+After the upload is successful, map the return value to a field object:
 
 ```json
 {"name":"a.pdf","type":"application/pdf","size":"12345","fileToken":"<token>"}
 ```
 
-其中 `type` 来自上传结果的 `mime_type`，`fileToken` 来自 `file_token`，`size` 写成十进制字符串；整个数组还要再次 JSON.stringify 后作为 `field_value`。
+Among them, `type` comes from the `mime_type` of the upload result, `fileToken` comes from `file_token`, and `size` is written as a decimal string; the entire array must be JSON.stringify again as `field_value`.
 
-### 单附件
+### Single attachment
 
-1. 通过已消歧的 `target_field_key` 上传文件，获得真实 `file_token`。
-2. 创建工作项、目标字段当前为空，或用户明确要求替换时，可调 `workitem create` / `workitem update` 直接写入单元素数组。
-3. 向已有 `multi-file` 字段**新增一个附件**时也必须先调 `workitem get`：记录基线数量，原样保留当前完整数组，追加新对象后再调 `workitem update`。不得因为这次只新增一个文件就覆盖旧数组。`file` 字段仍按上面的兼容性规则处理。
-4. 立即调 `workitem get` 回读**同一个目标字段**，按文件名和数量做写后验收。追加语义下预期数量为“基线数量 + 1”；不能只检查上传返回值，也不能回读另一个附件字段。
+1. Upload the file through the disambiguated `target_field_key` and obtain the real `file_token`.
+2. When creating a work item and the target field is currently empty, or the user explicitly requires replacement, you can adjust `workitem create` / `workitem update` to directly write to a single-element array.
+3. When adding an attachment to an existing `multi-file` field, you must first call `workitem get`: record the number of baselines, keep the current complete array as it is, add new objects, and then call `workitem update`. Do not overwrite the old array just because you are adding only one new file this time. `file` fields are still treated according to the compatibility rules above.
+4. Immediately call `workitem get` to read back **the same target field**, and perform post-write acceptance based on file name and quantity. The expected quantity under append semantics is "baseline quantity + 1"; you cannot just check the upload return value, nor read back another attachment field.
 
-### 同一 `multi-file` 字段写入多个附件
+### Write multiple attachments to the same `multi-file` field
 
-可靠路径是**单附件落库后逐个追加**，不要把“创建时一次传入多个简化对象”作为默认协议：
+The reliable path is to append single attachments one by one after they are dropped into the library. Do not use "pass in multiple simplified objects at once during creation" as the default protocol:
 
-1. 创建场景先上传并随 `workitem create` 写入第一个附件，拿到工作项 ID；剩余附件改用该 ID 逐个处理。已有工作项直接从下一步开始。
-2. 每追加一个文件前，先调 `workitem get` 读取 `target_field_key` 的当前完整数组。
-3. 上传一个新文件；将当前数组中的旧对象**原样保留**（包括 `uid`、`url` 及未知字段），只在数组末尾加入这一个新文件对象。
-4. stringify 整个新数组并调 `workitem update` 覆盖目标字段；随后再次回读确认这一轮新增文件已出现。
-5. 对剩余文件重复 2–4。最终比较用户请求的文件名多重集和数量：创建语义下等于请求总数，追加语义下等于“基线数量 + 成功新增数”；token 可能被服务端重签，不能把 token 完全相等作为唯一验收条件。
+1. Upload the created scene first and write the first attachment with `workitem create` to get the work item ID; the remaining attachments will be processed one by one using this ID. Existing work items start directly from the next step.
+2. Before appending a file, call `workitem get` to read the current complete array of `target_field_key`.
+3. Upload a new file; keep the old objects in the current array as they are (including `uid`, `url` and unknown fields), and only add this new file object at the end of the array.
+4. Stringify the entire new array and call `workitem update` to cover the target field; then read back again to confirm that this round of new files has appeared.
+5. Repeat 2–4 for remaining files. Finally, compare the multiset and number of file names requested by the user: equal to the total number of requests under creation semantics, and equal to "baseline number + number of successful additions" under append semantics; tokens may be re-signed by the server, and complete equality of tokens cannot be used as the only acceptance condition.
 
-如果一次写入多个简化对象触发 `unique` 校验，直接切换到上述逐个追加协议；不得删除已成功落库的附件后盲目重试。更新是覆盖语义，不先读取并保留旧数组会导致已有附件丢失。
+If writing multiple simplified objects at one time triggers `unique` verification, switch directly to the above-mentioned append protocol one by one; you must not delete attachments that have been successfully dropped and then blindly retry. Updates have overwriting semantics, and not reading and retaining the old array first will cause existing attachments to be lost.
 
-## 写后验收清单
+## Post-writing acceptance list
 
-- 回读的是已消歧并实际写入的 `target_field_key`。
-- 单附件：目标文件名存在，目标字段数量符合预期。
-- 多附件：请求的每个文件名都存在，重复文件按用户意图计数，总数符合预期。
-- API 验收通过但无法验证页面布局时，如实说明 UI 可见性未验证，不把它包装成 UI 成功。
+- What is read back is the disambiguated and actually written `target_field_key`.
+- Single attachment: The target file name exists and the number of target fields is as expected.
+- Multiple attachments: Every filename requested is present, duplicate files are counted as intended by the user, and the total is as expected.
+- When the API acceptance is passed but the page layout cannot be verified, it will be truthfully stated that the UI visibility has not been verified, and it will not be packaged as UI success.
 
 ## attachment prepare-upload
-申请上传签名。`work_item_id` 与 `work_item_type` **二选一必填**：已有工作项传 `work_item_id`；"创建工作项时同步上传附件" 场景传 `work_item_type`，两者同传时 `work_item_id` 优先。
+Apply to upload signature. `work_item_id` and `work_item_type` **Choose one of the two required**: Pass `work_item_id` for an existing work item; "Upload attachments simultaneously when creating a work item" scenario passes `work_item_type`, when both are transmitted simultaneously, `work_item_id` takes precedence.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --resource-type | number | 是 | 附件场景：13=评论附件 / 14=评论图片 / 15=工作项附件字段 / 16=富文本字段图片 |
-| --file-name | string | 是 | 附件名称 |
-| --mime-type | string | 是 | MIME 类型 |
-| --size | number | 是 | 文件总大小（字节）；后端据此判断走单次上传还是分片 |
-| --work-item-id | string | 二选一 | 已有工作项 ID |
-| --work-item-type | string | 二选一 | 工作项类型（仅 "创建工作项同步上传附件" 场景） |
-| --field-key | string | 条件 | `resource_type=15/16` 必填，13/14 不填 |
+| --project-key | string | yes | space key |
+| --resource-type | number | Yes | Attachment scenarios: 13=Comment attachment / 14=Comment image / 15=Work item attachment field / 16=Rich text field image |
+| --file-name | string | yes | attachment name |
+| --mime-type | string | Yes | MIME type |
+| --size | number | Yes | The total size of the file (bytes); the backend will use this to determine whether to upload a single upload or split it |
+| --work-item-id | string | Choose one of two | Existing work item ID |
+| --work-item-type | string | Choose one of the two | Work item type (only "Create work item and upload attachment simultaneously" scenario) |
+| --field-key | string | Condition | `resource_type=15/16` required, 13/14 not filled in |
 
 ## attachment prepare-download
-申请下载签名。`file_url` 是其它命令（如 `workitem get` 的附件字段值、`comment list` 评论里的附件链接、富文本中的附件引用）回传的不透明引用，**不要**手工拼接。
+Request download signature. `file_url` is an opaque reference returned by other commands (such as the attachment field value of `workitem get`, the attachment link in `comment list` comments, and the attachment reference in rich text). **Do not** manually splice it.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --work-item-id | string | 是 | 工作项 ID |
-| --file-url | string | 是 | 附件 URL（来自附件字段、评论或富文本） |
+| --project-key | string | yes | space key |
+| --work-item-id | string | yes | work item ID |
+| --file-url | string | Yes | Attachment URL (from attachment field, comment, or rich text) |
 
 ## attachment +upload
-端到端上传：CLI 在本地把 `attachment prepare-upload` 与对象存储的签名 HTTP POST 串起来，返回 `file_token` 与文件元数据，可直接喂给 `workitem create` / `workitem update` / `comment add` 的附件字段。**Meegle CLI 专用**。
+End-to-end upload: CLI locally strings `attachment prepare-upload` with object storage's signed HTTP POST, returns `file_token` and file metadata, which can be directly fed to the attachment field of `workitem create` / `workitem update` / `comment add`. **Meegle CLI only**.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| `<source-path>`（位置参数） | string | 是 | 本地文件路径 |
-| --resource-type | string | 是 | 13/14/15/16，含义同 `attachment prepare-upload` |
-| --project-key | string | 是 | 空间 key |
-| --work-item-id | string | 二选一 | 已有工作项 ID |
-| --work-item-type | string | 二选一 | 创建场景的工作项类型 |
-| --field-key | string | 条件 | resource_type=15/16 时必填 |
-| --filename | string | 否 | 覆盖发送给后端的文件名（默认取本地 basename） |
-| --content-type | string | 否 | 覆盖 MIME 类型（默认按扩展名探测，未识别走 `application/octet-stream`） |
+| `<source-path>` (positional parameter) | string | yes | local file path |
+| --resource-type | string | Yes | 13/14/15/16, the same meaning as `attachment prepare-upload` |
+| --project-key | string | yes | space key |
+| --work-item-id | string | Choose one of two | Existing work item ID |
+| --work-item-type | string | Choose one of two | Create the work item type of the scenario |
+| --field-key | string | Condition | Required when resource_type=15/16 |
+| --filename | string | No | Override the file name sent to the backend (default is local basename) |
+| --content-type | string | No | Override MIME type (detected by extension by default, `application/octet-stream` is not recognized) |
 
 ## attachment +download
-端到端下载：CLI 在本地把 `attachment prepare-download` 与对象存储的签名 HTTP GET 串起来，并用 `.partial` 临时文件 + 原子改名落盘，失败时不会留下半残文件。**Meegle CLI 专用**。
+End-to-end download: The CLI locally connects `attachment prepare-download` with the signature HTTP GET of the object storage, and uses `.partial` temporary file + atomic rename to disk, so that no half-broken files will be left when it fails. **Meegle CLI only**.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| `<file-url>`（位置参数） | string | 是 | 附件 URL（来自附件字段、评论或富文本） |
-| --project-key | string | 是 | 空间 key |
-| --work-item-id | string | 是 | 工作项 ID |
-| --output | string | 是 | 本地落地路径 |
-| overwrite | bool | 否 | 目标已存在时是否覆盖（默认 false） |
+| `<file-url>` (positional parameter) | string | Yes | Attachment URL (from attachment field, comment, or rich text) |
+| --project-key | string | yes | space key |
+| --work-item-id | string | yes | work item ID |
+| --output | string | yes | local landing path |
+| overwrite | bool | no | whether to overwrite the target if it already exists (default false) |

@@ -74,7 +74,7 @@ func selectedList(opts *frameworkoutput.FormatOptions) []string {
 }
 
 func (v TableView) encodeObject(obj map[string]any, selected []string) ([]byte, error) {
-	// Per spec §"形状 A/B": user --select keys are authoritative — missing
+	// Per spec §"Shape A/B": user --select keys are authoritative — missing
 	// keys render as empty cells, never silently dropped. Auto-derive is the
 	// fallback for two cases:
 	//   - no user selection (selected is empty)
@@ -172,7 +172,7 @@ func (v TableView) encodeArray(arr []any, selected []string, maxCols int) ([]byt
 		}
 		return buf.Bytes(), nil
 	}
-	// Per spec §"形状 A": user --select is authoritative. Missing keys
+	// Per spec §"Shape A": user --select is authoritative. Missing keys
 	// render as empty cells; we only fall through to auto-derive columns
 	// when every expression is stale (post-unwrap peeled the outer key
 	// away — see reconcileSelect for the rationale). Dropped keys are

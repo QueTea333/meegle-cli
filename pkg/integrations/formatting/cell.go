@@ -12,7 +12,7 @@ import (
 
 // RenderCell returns the table-cell string for an arbitrary value.
 //
-// Rules (matching the design spec §格式行为规约 > table):
+// Rules (matching the design spec §Formatting Behavior Specification > table):
 //   - nil → ""
 //   - string/float/bool → Sprint, truncated by maxWidth
 //   - json.Number → exact numeric lexeme, never truncated

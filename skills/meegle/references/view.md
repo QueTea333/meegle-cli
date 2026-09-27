@@ -1,40 +1,40 @@
-# 视图辅助命令
+#View auxiliary commands
 
-视图搜索与固定视图管理。读取视图数据用 `view get`（见 SKILL.md 主文件）。
+View search and fixed view management. Use `view get` to read view data (see the SKILL.md main file).
 
 ## view search
-按名称搜索视图。
+Search views by name.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --view-scope | string | 是 | 视图范围 |
-| --key-word | string | 是 | 关键词 |
+| --project-key | string | yes | space key |
+| --view-scope | string | yes | view scope |
+| --key-word | string | yes | keyword |
 
 ## view create-fixed
-创建固定视图。上限 200 个工作项。
+Create a fixed view. Maximum of 200 work items.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --name | string | 是 | 视图名称 |
-| --work-item-type | string | 是 | 工作项类型 |
-| --work-item-id-list | array | 是 | 工作项 ID 列表 |
+| --project-key | string | yes | space key |
+| --name | string | yes | view name |
+| --work-item-type | string | yes | work item type |
+| --work-item-id-list | array | yes | list of work item IDs |
 
 ## view update-fixed
-更新固定视图。add/remove_work_item_ids 二选一。
+Update fixed view. add/remove_work_item_ids Choose one of the two.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --view-id | string | 是 | 视图 ID |
-| --work-item-type | string | 是 | 工作项类型 |
+| --project-key | string | yes | space key |
+| --view-id | string | yes | view ID |
+| --work-item-type | string | yes | work item type |
 
 ## view list-multi-project-workitems
-查看全景视图（multiProjectView）下当前用户有权限的工作项列表。全景视图的链接上带有 `multiProjectView` 关键字，可从中提取 `view_id`。
+View the list of work items that the current user has permissions under the panoramic view (multiProjectView). Panorama views have links with the `multiProjectView` keyword from which the `view_id` can be extracted.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --view-id | string | 是 | 全景视图 ID |
-| --page-num | number | 否 | 分页页码，每页 50 条，从 1 开始 |
+| --project-key | string | yes | space key |
+| --view-id | string | yes | panorama view ID |
+| --page-num | number | No | Paging page number, 50 items per page, starting from 1 |

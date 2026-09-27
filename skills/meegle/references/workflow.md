@@ -1,34 +1,34 @@
-# 工作流辅助命令
+# Workflow auxiliary commands
 
-工作流流转之前用来查询可流转方向、必填项、节点字段配置的辅助命令。核心流转命令（`workflow transition` / `workflow transition-state` / `workflow get-node` / `workflow update-node`）见 SKILL.md 主文件。
+An auxiliary command used to query the transferable direction, required items, and node field configuration before workflow transfer. For core flow commands (`workflow transition` / `workflow transition-state` / `workflow get-node` / `workflow update-node`), see the SKILL.md main file.
 
 ## workflow list-state-transitions
-查看工作项可流转的状态列表。状态流流转前必须先调用此命令拿 `transition_id`。
+View the status list of work items that can be transferred. This command must be called to get `transition_id` before the state flow is transferred.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --work-item-id | string | 是 | 工作项 ID |
-| --work-item-type | string | 是 | 工作项类型 |
-| --user-key | string | 是 | 用户标识 |
+| --project-key | string | yes | space key |
+| --work-item-id | string | yes | work item ID |
+| --work-item-type | string | yes | work item type |
+| --user-key | string | yes | user ID |
 
 ## workflow list-state-required
-查看流转所需的必填信息（节点流传 node_key，状态流传 state_key）。
+View the required information required for transfer (node ​​transfer node_key, state transfer state_key).
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --work-item-id | string | 是 | 工作项 ID |
-| --state-key | string | 是 | 节点流的 node_key 或状态流的 state_key |
-| --mode | string | 否 | 默认查所有必填项；传 `unfinished` 仅查未完成必填项 |
+| --project-key | string | yes | space key |
+| --work-item-id | string | yes | work item ID |
+| --state-key | string | Yes | The node_key of the node stream or the state_key of the state stream |
+| --mode | string | No | Check all required fields by default; pass `unfinished` to only check unfinished required fields |
 
 ## workflow meta-node-fields
-查看节点字段配置。`workflow update-node` 修改节点自定义字段前用来确认合法 field_key、字段类型与 options。查询评审结论选项时按 `field_keys=["node_finished_conclusion"]` 精确查询，并从返回配置的 options / 选项列表中取合法值。
+View node field configuration. `workflow update-node` is used to confirm the legal field_key, field type and options before modifying node custom fields. When querying the review conclusion options, press `field_keys=["node_finished_conclusion"]` to query accurately, and take legal values ​​from the options/option list of the returned configuration.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --work-item-type | string | 是 | 工作项类型 |
-| --field-keys | array | 否 | 精确匹配节点字段 key 或名称，如 `["node_finished_conclusion"]` |
-| --field-types | array | 否 | 按节点字段类型筛选 |
-| --query | string | 否 | 按字段 name / key 模糊搜索 |
+| --project-key | string | yes | space key |
+| --work-item-type | string | yes | work item type |
+| --field-keys | array | No | Exactly match node field key or name, such as `["node_finished_conclusion"]` |
+| --field-types | array | No | Filter by node field type |
+| --query | string | No | Fuzzy search by field name / key |

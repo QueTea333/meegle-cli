@@ -1,170 +1,170 @@
-# 创建工作项
+#Create work item
 
-> **CRITICAL** — 开始前 MUST 先用 Read 工具读取 `../SKILL.md`，其中包含前置检查、授权流程、命令参数参考、字段值格式、通用规范和错误处理。
+> **CRITICAL** — Before starting, MUST use the Read tool to read `../SKILL.md`, which contains pre-checking, authorization process, command parameter reference, field value format, general specifications and error handling.
 
-本技能用于在飞书项目中创建工作项（需求、任务、缺陷等），全程自动化执行。
+This skill is used to create work items (requirements, tasks, defects, etc.) in the Feishu project and execute the entire process automatically.
 
 ---
 
-## 执行流程
+## Execution process
 
-### STEP 1 — 提取意图
+### STEP 1 — Extract intent
 
-从用户输入中提取：
-- **空间名**：哪个项目空间
-- **工作项类型**：需求 / 任务 / 缺陷 / 其他
-- **字段值**：标题、优先级、负责人、描述等
-- **URL**（如有）：先调 `url decode` 解析。`url_kind` 非 `workitem_create` / `workitem_detail` 时按 [url-kinds.md](url-kinds.md) 拒绝或追问；命中则用返回的 `simple_name` 取代空间名探测，`work_item_type` 取代类型探测。**禁止**自己从 URL 截取路径段作参数。
+Extract from user input:
+- **Space name**: Which project space
+- **Work item type**: Requirement/Task/Defect/Other
+- **Field value**: title, priority, person in charge, description, etc.
+- **URL** (if any): adjust `url decode` for parsing first. When `url_kind` is not `workitem_create` / `workitem_detail`, press [url-kinds.md](url-kinds.md) to reject or ask; if hit, use the returned `simple_name` to replace the space name detection, and `work_item_type` to replace the type detection. **It is forbidden** to intercept the path segment from the URL as a parameter.
 
 
-### STEP 2 — 确认空间和类型
+### STEP 2 — Confirm space and type
 
-1. 用 `project search` 验证空间 → 获取 `project_key`
-2. 用 `workitem meta-types` 获取类型列表 → 确认 `work_item_type`
+1. Use `project search` to verify the space → obtain `project_key`
+2. Use `workitem meta-types` to get the type list → confirm `work_item_type`
 
-> 唯一匹配则直接用，多个匹配则展示列表让用户选，无匹配则问用户。**禁止猜测。**
+> If there is a unique match, use it directly. If there are multiple matches, a list will be displayed for the user to choose. If there is no match, the user will be asked. **No guessing allowed. **
 
-### STEP 3 — 收集元数据（并行）
+### STEP 3 — Collect metadata (parallel)
 
-同时发起以下调用：
+At the same time, the following calls are made:
 
-| 调用 | 目的 |
+| call | purpose |
 |------|------|
-| `workitem meta-create-fields` | 获取该类型的**必填字段**元信息（前置校验，防止因空间自定义必填项缺失导致创建失败） |
-| `workitem meta-fields(field_keys=["template"])` | **获取模板 ID**（创建必填） |
-| `workitem meta-fields(field_query="用户提到的字段名")` | 确认字段 key、类型、枚举值（通过 `field_keys` 精确匹配或 `field_query` 模糊搜索，避免全量拉取时因分页导致自定义字段遗漏） |
-| `workitem meta-roles(page_num=1)` | 获取角色定义（如用户指定了负责人等角色） |
+| `workitem meta-create-fields` | Get the **required fields** meta-information of this type (pre-verification to prevent creation failure due to missing space custom required fields) |
+| `workitem meta-fields(field_keys=["template"])` | **Get template ID** (required for creation) |
+| `workitem meta-fields(field_query="field name mentioned by the user")` | Confirm the field key, type, and enumeration value (through `field_keys` exact matching or `field_query` fuzzy search to avoid missing custom fields due to paging during full pull) |
+| `workitem meta-roles(page_num=1)` | Get role definition (if the user has specified roles such as person in charge) |
 
-如用户提到了人名，并行调用 `user search` 转换为 userkey。
+If the user mentions a person's name, call `user search` in parallel to convert it to userkey.
 
-> 默认只查询在职用户。只有当用户明确要求包含离职、停用等非在职人员，或在职结果为空且用户要求继续查找时，才给 `user search` 传 `--need-all-status=true`。
+> By default, only current users are queried. Pass `--need-all-status=true` to `user search` only when the user explicitly requests to include non-employed personnel such as resignation or suspension, or when the employment result is empty and the user requests to continue searching.
 
-**附件字段门禁**：只要用户要求上传附件，就必须额外调用 `workitem meta-fields`，实时查询当前空间和类型下全部 `file` 和 `multi-file` 字段。用户指定字段名或 key 时做精确匹配；用户只说“附件”且出现多个候选时，列出字段名、key、类型并让用户选择。禁止默认取第一个，禁止复用历史会话里的附件字段，禁止把 `attachment` 或 `multi_attachment` 写死。确定目标后，上传、创建和回读都必须使用同一个字段 key。完整协议见 [attachment.md](attachment.md)。
+**Attachment field access control**: As long as the user requests to upload attachments, they must additionally call `workitem meta-fields` to query all `file` and `multi-file` fields in the current space and type in real time. When the user specifies a field name or key, do an exact match; when the user only says "attachment" and multiple candidates appear, list the field name, key, and type and let the user choose. It is forbidden to take the first one by default, it is forbidden to reuse the attachment field in the historical session, and it is forbidden to hard-code `attachment` or `multi_attachment`. After the target is determined, the same field key must be used for uploading, creating and reading back. See [attachment.md](attachment.md) for the complete agreement.
 
-### STEP 4 — 自动匹配模板
+### STEP 4 — Automatic matching template
 
-根据 STEP 3 获取的模板枚举值：
-- **只有一个模板** → 自动选择
-- **多个模板** → 根据用户描述中的关键词匹配最接近的模板名，选不出来时展示列表让用户选
-- **用户明确指定了模板名** → 精确匹配
+Template enumeration value obtained according to STEP 3:
+- **Only one template** → Auto-select
+- **Multiple Templates** → Match the closest template name based on the keywords in the user description, and display a list for the user to choose if they cannot choose.
+- **User explicitly specified template name** → Exact match
 
-### STEP 5 — 自动补全必填项与转换字段值
+### STEP 5 — Automatically complete required fields and convert field values
 
-**1. 自动补全必填项**
+**1. Auto-complete required fields**
 
-严格对比 `workitem meta-create-fields` 返回的必填字段与用户已给定的字段。对于缺失的必填项（尤其是空间自定义的特殊必填项），自动生成合理的默认值：
-- 枚举：默认取第一项
-- 文本：填"自动生成"
-- 布尔：填 true
+Strictly compares the required fields returned by `workitem meta-create-fields` with the fields given by the user. Automatically generate sensible default values ​​for missing required fields (especially special required fields for space customization):
+- Enumeration: the first item is taken by default
+- Text: Fill in "Automatically generated"
+- Boolean: fill in true
 
-**2. 转换字段值**
+**2. Convert field value**
 
-将用户给的自然语言值及自动生成的默认值转换成 API 需要的格式：
+Convert the natural language value given by the user and the automatically generated default value into the format required by the API:
 
-| 来源 | 转换 |
+| Source | Convert |
 |------|------|
-| 人名 | 调用 `user search` 批量转换为 userkey |
-| 枚举值 | 从字段配置的 options 中按 option_name 匹配得到 option_id |
-| 日期 | 转为毫秒时间戳 |
-| 其他类型 | 按主文档 [SKILL.md](../SKILL.md)「字段值格式」规范转换 |
+| Person name | Call `user search` to batch convert to userkey |
+| Enumeration value | Get option_id from option_name matching in field configuration options |
+| Date | Convert to millisecond timestamp |
+| Other types | Converted according to the "Field Value Format" specification of the main document [SKILL.md](../SKILL.md) |
 
-**格式速查**（创建场景特有约束；通用类型见主文档 [SKILL.md](../SKILL.md)「字段值格式」章节）：
+**Format quick check** (create scene-specific constraints; for general types, see the "Field value format" chapter of the main document [SKILL.md](../SKILL.md)):
 
-> 🚨 **关键约定**：`field_value` 协议层是 **STRING**。标量直接字符串化；数组/对象**必须先 JSON.stringify**，否则会报 `need STRING type, but got: LIST`。
+> 🚨 **Key Convention**: `field_value` protocol layer is **STRING**. Scalars are directly stringified; arrays/objects must be JSON.stringify first, otherwise `need STRING type, but got: LIST` will be reported.
 
-| 字段类型 | 差异化提示 |
+| Field type | Differentiation tips |
 |---------|-----------|
-| `role_owners` | **仅创建时可用**；stringified 对象数组 `"[{\"role\":\"<role_id>\",\"owners\":[\"<userkey>\"]}]"` |
-| `signal` | option_id 纯字符串 `"<option_id>"`（以 `workitem meta-fields` 的 `options[].option_id` 为准；不接受 `"true"`/`"false"`/`"null"`） |
-| `workitem_related_multi_select` | **stringified** ID 数组，**禁止写入自身 ID**（防循环引用，触发 `exists loop`） |
-| `multi-file` | 按 [attachment.md](attachment.md) 完成“本地文件校验 → 字段消歧 → 对象存储上传 → 字段绑定 → 写后验收”。单附件可随创建写入；多个附件先随创建写入第一个，获得工作项 ID 后再逐个读取、合并并更新，避免 `unique` 校验与覆盖丢失 |
-| `file` | 按 [attachment.md](attachment.md) 的兼容性规则处理；不得假设旧版或单附件字段支持多附件，也不得与 `multi-file` 共用未经验证的多附件写入协议 |
+| `role_owners` | **Available only on creation**; stringified object array `"[{\"role\":\"<role_id>\",\"owners\":[\"<userkey>\"]}]"` |
+| `signal` | option_id plain string `"<option_id>"` (based on `options[].option_id` of `workitem meta-fields`; `"true"`/`"false"`/`"null"` is not accepted) |
+| `workitem_related_multi_select` | **stringified** ID array, **forbidden to write own ID** (anti-cyclic reference, trigger `exists loop`) |
+| `multi-file` | Press [attachment.md](attachment.md) to complete "local file verification → field disambiguation → object storage upload → field binding → acceptance after writing". A single attachment can be written as it is created; multiple attachments are first written as they are created, and then read, merged and updated one by one after obtaining the work item ID to avoid `unique` verification and overwriting loss |
+| `file` | Treated according to the compatibility rules of [attachment.md](attachment.md); legacy or single-attachment fields must not be assumed to support multiple attachments, nor may they share the unvalidated multi-attachment writing protocol with `multi-file` |
 
-> 其余通用字段类型（text / user / multi-user / date / schedule / precise_date / select 系列等）写入格式详见主文档 [SKILL.md](../SKILL.md)「字段值格式」章节。
+> For details on the writing format of other common field types (text / user / multi-user / date / schedule / precise_date / select series, etc.), please refer to the "Field Value Format" chapter of the main document [SKILL.md](../SKILL.md).
 
-**角色设置**（创建时）：通过 fields 中的 `role_owners` 字段，值为 stringified 对象数组：
+**Role settings** (on creation): Through the `role_owners` field in fields, the value is an array of stringified objects:
 
 ```json
 {"field_key":"role_owners","field_value":"[{\"role\":\"<role_id>\",\"owners\":[\"<userkey>\"]}]"}
 ```
 
-> **角色补充**：创建时除了能在 `fields` 数组内处理极少部分内置的 role_owners 字段外，针对其他自定义角色（如 PO、PM、Tech Lead 等），须在创建后用 `workitem update` 的 `role_operate` 参数追加写入。
+> **Role Supplement**: In addition to processing a few built-in role_owners fields in the `fields` array during creation, other custom roles (such as PO, PM, Tech Lead, etc.) must be additionally written using the `role_operate` parameter of `workitem update` after creation.
 
-### STEP 6 — 创建
+### STEP 6 — Create
 
 ```bash
-meegle workitem create --work-item-type 类型key --fields '[{"field_key":"template","field_value":"模板ID"},{"field_key":"name","field_value":"标题"}]' --project-key 空间key --format json
+meegle workitem create --work-item-type type key --fields '[{"field_key":"template","field_value":"template ID"},{"field_key":"name","field_value":"title"}]' --project-key space key --format json
 ```
 
-🚨 **批量创建**：当用户要求批量创建多个工作项时，必须**串行调用**（逐个请求），禁止高并发，以免触发平台限流。每个 field_value 均须符合「字段值格式」的 STRING 约定（标量直接字符串化；数组/对象 JSON.stringify）。
+🚨 **Batch creation**: When users require to create multiple work items in batches, they must **serially call** (request one by one), and high concurrency is prohibited to avoid triggering platform current limiting. Each field_value must conform to the STRING convention of "field value format" (scalar direct stringification; array/object JSON.stringify).
 
-### STEP 7 — 确认结果
+### STEP 7 — Confirm results
 
-创建成功后，如涉及附件，必须先调 `workitem get` 回读已消歧的目标字段，逐一核对请求文件名和数量。上传接口返回 token、创建接口返回成功，均不能替代目标字段的写后验收；回读了其他附件字段也不算成功。
+After successful creation, if attachments are involved, you must first call `workitem get` to read back the disambiguated target fields and check the requested file name and quantity one by one. The upload interface returns token and the creation interface returns success, neither of which can replace the post-write acceptance of the target field; reading back other attachment fields does not count as success.
 
-验收通过后，向用户展示：
-- 工作项 ID 和名称
-- 链接（如返回中包含）
-- 已设置的关键字段摘要
-- 附件目标字段名/key、实际文件名和数量；无法验证页面布局时仅声明 API 字段写入成功
+After the acceptance is passed, the user is shown:
+- Work item ID and name
+- Link (if included in return)
+- Summary of key fields that have been set
+- Attachment target field name/key, actual file name and quantity; when the page layout cannot be verified, only declare that the API field is written successfully
 
 ---
 
-## 特殊字段写入规则
+## Special field writing rules
 
-### 级联选项 (Tree-select)
+### Cascading options (Tree-select)
 
-1. **格式极简**：对于业务线（`_business`）等级联单选字段，`field_value` **只传 `option_id` 纯字符串**，不要传 `value/label/children` 的复杂 JSON。
-2. **层级强校验**：如果报错 `级联选项字段值不满足层级配置`，说明该字段要求选到末级叶子节点。此时查询该选项的 `children` 树，**将末级叶子节点列表展示给用户选择**，禁止自行向下盲猜。
+1. **Minimal format**: For the business line (`_business`) hierarchical radio-select field, `field_value` **only passes the `option_id` pure string**, do not pass the complex JSON of `value/label/children`.
+2. **Strong level verification**: If an error message `cascading option field value does not meet the level configuration` is reported, it means that the field requires selecting the last leaf node. At this time, the `children` tree of this option is queried, and the list of last-level leaf nodes is displayed to the user for selection. Blind guessing by oneself is prohibited.
 
-### 不可写入的字段类型
+### Unwritable field types
 
-以下字段类型不支持通过 API 写入，遇到时**直接跳过并告知用户原因**：
+The following field types do not support writing through the API. If encountered, they will be skipped directly and the user will be notified of the reason:
 
-| 类型 | 原因 |
+| Type | Reason |
 |------|------|
-| `vote-boolean`（轻量表态） | 计数器，只能由用户在界面操作 |
-| `vote-option` / `vote-option-multi`（投票） | 不支持通过接口伪造投票结果 |
-| 计算字段 | 系统自动计算，只读 |
+| `vote-boolean` (lightweight expression) | Counter, can only be operated by the user in the interface |
+| `vote-option` / `vote-option-multi` (voting) | Forging voting results through the interface is not supported |
+| Calculated field | Automatically calculated by the system, read-only |
 
-### 富文本与关联字段
+### Rich text and related fields
 
-- **富文本/多行文本**：直接传 Markdown 字符串（`# 标题`、`|列1|列2|`、代码块等）。
-- **关联云文档（PRD）**：传 URL 数组，如 `["https://xxx.feishu.cn/docx/xxx"]`。
-- **前置依赖/关联工作项**：传目标工作项 ID。**注意**：不同空间可能要求字符串 `"<work_item_id>"` 或数字格式，遇到类型校验失败立刻切换格式重试。用户提供的是工作项**名称而非 ID** 时，按 [field-value-extras.md](field-value-extras.md)「关联工作项名称 → ID 转换」完整流程处理。
-- **系统外信号类型 (`signal`)**：传 `option_id` 纯字符串（如 `"<option_id>"`；以 `workitem meta-fields` 的 `options[].option_id` 为准）。**不接受 `"true"` / `"false"` / `"null"`**。当前系统外信号常见 4 个 option：`passed` / `notpassed` / `processing` / `noinformationyet`。
+- **Rich Text/Multiline Text**: Directly pass Markdown strings (`# title`, `|Column 1|Column 2|`, code blocks, etc.).
+- **Associated Cloud Document (PRD)**: Pass URL array, such as `["https://xxx.feishu.cn/docx/xxx"]`.
+- **Pre-Dependency/Associated Work Item**: Pass the target work item ID. **Note**: Different spaces may require string `"<work_item_id>"` or numeric format. If type verification fails, switch the format immediately and try again. When the user provides a work item ** name instead of an ID **, follow the [field-value-extras.md](field-value-extras.md) "Associated Work Item Name → ID Conversion" complete process.
+- **External signal type (`signal`)**: Pass `option_id` as a pure string (such as `"<option_id>"`; subject to `options[].option_id` of `workitem meta-fields`). **Does not accept `"true"` / `"false"` / `"null"`**. Currently, there are four common options for signals outside the system: `passed` / `notpassed` / `processing` / `noinformationyet`.
 
 ---
 
-## 错误自动恢复（自愈机制）
+## Automatic error recovery (self-healing mechanism)
 
-> 通用自愈规则（格式错误、级联层级、枚举不合法）见 [error-handling.md](error-handling.md)。以下为本 SOP 补充规则：
+> For general self-healing rules (format error, cascading level, illegal enumeration), see [error-handling.md](error-handling.md). The following are supplementary rules to this SOP:
 
-| 报错特征 | 自愈动作 |
+| Error reporting characteristics | Self-healing actions |
 |---------|---------|
-| `json: unsupported type` / 网络超时 | 原参数直接重试 |
-| 字段 key 不匹配 | 用 `field_query` 模糊搜索取最佳匹配 |
-| 人名解析失败 | 尝试用邮箱前缀再搜一次 |
-| 明确缺少必填字段 | 核对字段类型限制，关联工作项尝试数字↔字符串切换 |
+| `json: unsupported type` / Network timeout | Retry directly with original parameters |
+| Field key does not match | Use `field_query` fuzzy search to find the best match |
+| Name resolution failed | Try searching again using email prefix |
+| Required fields are clearly missing | Check field type restrictions, try number ↔ string switching to associate work items |
 
 ---
 
-## 熔断机制 (Circuit Breaker)
+## Circuit Breaker
 
-> 通用熔断规则（空间未找到、权限不足）见主文档 [SKILL.md](../SKILL.md)「错误处理」。以下为本 SOP 补充规则：
+> For general circuit breaker rules (space not found, insufficient permissions), see the main document [SKILL.md](../SKILL.md) "Error Handling". The following are supplementary rules to this SOP:
 
-1. **工作项类型未找到**：`workitem meta-types` 失败超过 3 次
-2. **字段转换大面积失败**：字段值转换失败比例 > 60%，终止流程并列出失败字段明细，**不要强行创建残缺数据**
+1. **Work item type not found**: `workitem meta-types` failed more than 3 times
+2. **Extensive field conversion failure**: The failure rate of field value conversion is > 60%. Terminate the process and list the details of failed fields. **Do not forcibly create incomplete data**
 
 ---
 
-## 常见问题
+## FAQ
 
-| 问题 | 处理 |
+| Problem | Solution |
 |------|------|
-| 用户未指定空间 | 问用户 |
-| 用户未指定类型 | 如空间只有一种类型则直接用，否则问用户 |
-| 用户提到的字段不存在 | `workitem meta-fields(field_query="关键词")` 模糊查询，找不到则告知用户 |
-| 模板有多个 | 根据关键词匹配，匹配不到则展示列表让用户选 |
-| 枚举值匹配不到 | 展示该字段所有枚举值让用户选 |
-| 人名匹配到多人 | 展示完整列表让用户指定，**禁止自行选择** |
+| User has not specified space | Ask user |
+| The user has not specified the type | If there is only one type of space, use it directly, otherwise ask the user |
+| The field mentioned by the user does not exist | `workitem meta-fields(field_query="keyword")` Fuzzy query, inform the user if not found |
+| There are multiple templates | Match based on keywords. If no match is found, a list will be displayed for the user to choose |
+| The enumeration value cannot match | Display all the enumeration values ​​of this field for the user to choose |
+| Person name matched to multiple people | Display the complete list for users to specify, **No self-selecting** |
