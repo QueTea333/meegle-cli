@@ -1,64 +1,64 @@
-# 生成 Meegle 页面链接
+# Generate Meegle page link
 
-## 使用边界
+## Use boundaries
 
-仅在用户明确要求链接，或链接本身是交付物时使用。普通查询、创建、更新、流转完成后不要自动追加链接。
+Use only if the user explicitly requests the link, or if the link itself is the deliverable. Do not automatically append links after ordinary query, creation, update, and transfer are completed.
 
-目标是交付当前用户可打开的 canonical 页面链接：
+The goal is to deliver a link to a canonical page that can be opened by the current user:
 
-1. 先固定执行上下文和 `$target_host`，再通过 [Auth Guard](auth-guard.md) 取得有效 host：用户显式选择 `--profile` 时，Auth Guard 内的命令与后续所有查询都传同一个全局 flag；未显式选择时，全程使用当前 profile 且禁止中途切换。随后确认目标对象对该身份可查询；同一轮只有执行上下文与 host 都相同时才能复用成功结果。
-2. 只使用本文列出的路径模板，不根据印象发明路由。
-3. 生成后必须调用 `url decode` 反向校验；返回的 `url_kind` 与目标类型不同或为 `unknown` 时，不得交付该链接。
+1. First fix the execution context and `$target_host`, and then obtain the effective host through [Auth Guard](auth-guard.md): When the user explicitly selects `--profile`, the commands in Auth Guard and all subsequent queries will pass the same global flag; when not explicitly selected, the current profile will be used throughout the process and midway switching is prohibited. Then confirm that the target object can query the identity; only when the execution context and host are the same in the same round can the successful result be reused.
+2. Only use the path templates listed in this article and do not invent routes based on impressions.
+3. `url decode` must be called for reverse verification after generation; when the returned `url_kind` is different from the target type or is `unknown`, the link must not be delivered.
 
-反向解析只证明链接结构正确。目标查询成功才是“当前身份可访问”的证据；它不保证其他用户也有权限。
+Reverse parsing only proves that the link structure is correct. Success of the target query is evidence that "the current identity is accessible"; it does not guarantee that other users also have permissions.
 
 ---
 
-## 参数来源
+## Parameter source
 
 ### host
 
-先确定用户要打开的目标 host，并保存为本次请求的 `$target_host` 后再执行 Auth Guard：
+First determine the target host that the user wants to open and save it as `$target_host` for this request before executing Auth Guard:
 
-1. 用户明确指定的域名；
-2. 用户提供的已有 Meegle URL 经 `url decode` 返回的 `host`；
-3. 未指定时，SAVE `$target_host = null`，使用 Auth Guard 返回并保存的有效 `$host`（它已按运行环境与所选 profile 解析）。
+1. Domain name explicitly designated by the user;
+2. The `host` returned by `url decode` of the existing Meegle URL provided by the user;
+3. When not specified, SAVE `$target_host = null`, uses the valid `$host` returned and saved by Auth Guard (it has been resolved according to the runtime environment and the selected profile).
 
-在查询目标对象前执行 Auth Guard，并复用它的 host 一致性结论：域名忽略大小写并去掉末尾的 `.`，端口必须一致。若不一致，请用户切换到目标环境对应的 profile 或重新登录；不要拿环境 A 的成功查询证明环境 B 的链接可访问，也不要在下游用未经规范化的原字符串重复比较。最终链接只能使用这次成功查询实际连接的 host。
+Execute Auth Guard before querying the target object, and reuse its host consistency conclusion: the domain name ignores case and removes the `.` at the end, and the port must be consistent. If they are inconsistent, please switch to the profile corresponding to the target environment or log in again; do not use the successful query of environment A to prove that the link of environment B is accessible, and do not use the unnormalized original string to repeat the comparison downstream. The final link can only use the host that successfully queried the actual connection.
 
-host 为空或不是可信的 Meegle/飞书项目域名时，询问用户，不要默认猜成 `meegle.com` 或 `project.feishu.cn`。host 只保留域名和可选端口，不带协议、路径、query 或 fragment；最终统一使用 `https://`。
+When host is empty or is not a trusted Meegle/Feishu project domain name, ask the user and do not guess `meegle.com` or `project.feishu.cn` by default. host only retains the domain name and optional port, without protocol, path, query or fragment; in the end, `https://` will be used uniformly.
 
 ### simple_name
 
-`simple_name` 与 `project_key` 不是同一个概念，禁止互换。使用 `project search` 的唯一空间结果作为权威来源：
+`simple_name` and `project_key` are not the same concept, and interchange is prohibited. Use the unique spatial results from `project search` as the authoritative source:
 
-- 已有 URL 的 `simple_name` 只能作为空间查询输入；只有该 URL 本身指向同一目标对象/视图，或查询结果证明它与目标对象的 `project_key` 属于同一空间时，才能复用；
-- 只有空间名称或 project_key：查询后使用唯一命中结果中的 `simple_name`；
-- 结果不唯一或没有返回 `simple_name`：询问用户提供准确空间或现有页面链接，不要拿 `project_key` 代替。
+- The `simple_name` of an existing URL can only be used as a spatial query input; it can only be reused when the URL itself points to the same target object/view, or the query results prove that it belongs to the same space as the `project_key` of the target object;
+- Only space name or project_key: use `simple_name` in the unique hit result after query;
+- The result is not unique or does not return `simple_name`: Ask the user to provide the exact space or link to the existing page, do not use `project_key` instead.
 
-### 其他动态字段
+### Other dynamic fields
 
-ID 与类型 key 优先取自本轮已有命令结果；否则先用对应查询命令确认：
+The ID and type key are first taken from the results of existing commands in this round; otherwise, confirm with the corresponding query command first:
 
-| 目标 | 可访问性检查 |
+| Goals | Accessibility Check |
 |---|---|
-| 工作项详情 | `workitem get` |
-| 需求、缺陷、通用、空间概览、甘特、图表视图 | `view get` |
-| 跨空间 / 全景视图 `view_multi_project` | `view list-multi-project-workitems` |
-| 图表详情 | `chart get` |
-| 空间首页 / 空间概览 | `project search` |
+| Work item details | `workitem get` |
+| Requirements, Defects, General, Space Overview, Gantt, Chart Views | `view get` |
+| Cross-space/panoramic view `view_multi_project` | `view list-multi-project-workitems` |
+| Chart details | `chart get` |
+| Space Home Page / Space Overview | `project search` |
 
-工作项类型、视图 ID、图表 ID 或工作项 ID 缺失时合并为一次询问。查询返回无权限、不存在或不唯一时停止，不生成“可访问”链接。
+Missing work item types, view IDs, chart IDs, or work item IDs are combined into one query. The query stops when it returns no permission, does not exist, or is not unique, and does not generate an "accessible" link.
 
-视图查询成功只能证明该 `view_id` 可读取，不能单独推断页面路由类型。`url_kind` 必须来自指向同一视图的已有 URL 经 `url decode` 的结果，或查询结果中的权威 view scope；用户口述的视图类型只能用于缩小查询范围，不能单独作为路由证据。无法确认时询问用户。特别是“全景视图”必须确认是 `view_multi_project` 还是 `view_project_overview`。
+A successful view query can only prove that the `view_id` is readable and cannot infer the page routing type alone. `url_kind` must come from the result of `url decode` of an existing URL pointing to the same view, or the authoritative view scope in the query results; the view type dictated by the user can only be used to narrow the scope of the query and cannot be used as routing evidence alone. Ask user if unable to confirm. In particular "overview" must be identified as `view_multi_project` or `view_project_overview`.
 
 ---
 
-## 支持的 canonical 路径
+## Supported canonical paths
 
-每个 `{...}` 仅表示一个路径段。动态值按 RFC 3986 path segment 编码：只保留字母、数字、`-`、`.`、`_`、`~`，其余字节全部百分号编码；拒绝原始值中包含 `/`、`\\`、`?`、`#`、控制字符，或整个值为 `.` / `..` 的歧义输入。
+Each `{...}` represents only one path segment. Dynamic values ​​are encoded according to RFC 3986 path segment: only letters, numbers, `-`, `.`, `_`, `~` are retained, and the remaining bytes are all percent-encoded; ambiguous input containing `/`, `\\`, `?`, `#`, control characters in the original value, or the entire value is `.` / `..` is rejected.
 
-| url_kind | 必需字段 | pathname |
+| url_kind | required field | pathname |
 |---|---|---|
 | `workitem_detail` | simple_name, work_item_type, work_item_id | `/{simple_name}/{work_item_type}/detail/{work_item_id}` |
 | `view_story` | simple_name, view_id | `/{simple_name}/storyView/{view_id}` |
@@ -72,80 +72,80 @@ ID 与类型 key 优先取自本轮已有命令结果；否则先用对应查询
 | `project_home` | simple_name | `/{simple_name}` |
 | `project_overview` | simple_name | `/{simple_name}/overview` |
 
-资源工作项或资源视图把 `work_item_type` 包装为 `_{work_item_type}_resource`，例如 `story` → `_story_resource`。不要重复包装已经带该形式的值。
+A resource work item or resource view wraps `work_item_type` as `_{work_item_type}_resource`, for example `story` → `_story_resource`. Do not repack a value that already has this form.
 
-`work_item_type=chart` 的工作项详情会与 `chart_detail` 冲突；通用视图中的 `work_item_type=chart` 会与 `view_chart` 冲突。反向校验会暴露这类保留路由冲突，遇到时停止并说明当前 canonical 路由无法无歧义表达目标。
+Work item details with `work_item_type=chart` will conflict with `chart_detail`; `work_item_type=chart` in a generic view will conflict with `view_chart`. Backward validation exposes such reserved route conflicts, stopping when encountered and stating that the current canonical route cannot unambiguously express the target.
 
-不支持系统页、设置页、登录页、导入页、错误页、插件页，以及任何本文未列出的 `url_kind`。
+System pages, settings pages, login pages, import pages, error pages, plugin pages, and any `url_kind` not listed in this article are not supported.
 
 ---
 
-## 生成与校验
+## Generation and verification
 
-每个候选链接都必须校验完整目标身份，不能只比较 `url_kind`：
+Each candidate link must verify the complete target identity, not just compare `url_kind`:
 
-- 所有类型：decoder 返回的 `host` 按 Auth Guard 的规则规范化后必须等于 `$host`，`simple_name` 必须等于权威空间结果；
-- `workitem_detail`：`work_item_type`、`work_item_id` 必须与目标一致；资源工作项还必须返回 `is_resource=true`；
-- `view_workitem`：`work_item_type`、`view_id` 必须与目标一致；资源视图还必须返回 `is_resource=true`；
-- 其他 `view_*`：`view_id` 必须与目标一致；
-- `chart_detail`：`chart_id` 必须与目标一致；
-- `project_home` / `project_overview`：除公共字段外没有额外 ID。
+- All types: The `host` returned by the decoder must be equal to `$host` after normalization according to the rules of Auth Guard, and `simple_name` must be equal to the authoritative space result;
+- `workitem_detail`: `work_item_type`, `work_item_id` must be consistent with the target; the resource work item must also return `is_resource=true`;
+- `view_workitem`: `work_item_type`, `view_id` must be consistent with the target; the resource view must also return `is_resource=true`;
+- Other `view_*`: `view_id` must be consistent with the target;
+- `chart_detail`: `chart_id` must be consistent with the target;
+- `project_home` / `project_overview`: no additional IDs except public fields.
 
-任一字段缺失或不一致都停止交付。动态路径段比较解码后的语义值，不比较百分号编码文本本身。
+Missing or inconsistent fields will stop delivery. Dynamic path segments compare the decoded semantic values, not the percent-encoded text itself.
 
-### 工作项详情
+### Work item details
 
-已知：host=`project.feishu.cn`、simple_name=`xopenapp`、work_item_type=`story`、work_item_id=`7092625364`。
+Known: host=`project.feishu.cn`, simple_name=`xopenapp`, work_item_type=`story`, work_item_id=`7092625364`.
 
-候选链接：
+Candidate links:
 
 ```text
 https://project.feishu.cn/xopenapp/story/detail/7092625364
 ```
 
-校验：
+check:
 
 ```bash
 meegle url decode --url 'https://project.feishu.cn/xopenapp/story/detail/7092625364' --format json
 ```
 
-只在输出 `url_kind=workitem_detail` 且关键字段与输入一致时交付。
+Only delivered if the output `url_kind=workitem_detail` and the key field matches the input.
 
-### 通用工作项视图
+### Generic work item view
 
 ```text
 https://project.feishu.cn/xopenapp/workObjectView/story/9988
 ```
 
-必须解码为 `view_workitem`，并返回一致的 `simple_name`、`work_item_type` 和 `view_id`。
+Must decode to `view_workitem` and return consistent `simple_name`, `work_item_type` and `view_id`.
 
-### 跨空间 / 全景视图
+### Cross-space/panoramic view
 
 ```text
 https://project.feishu.cn/xopenapp/multiProjectView/9988
 https://project.feishu.cn/xopenapp/project-overview/9988
 ```
 
-分别必须解码为 `view_multi_project` 和 `view_project_overview`。不要只凭“全景视图”名称猜一种；根据视图查询结果或已有 URL 确定类型，无法区分时询问用户。
+Must decode to `view_multi_project` and `view_project_overview` respectively. Don't just guess one based on the Panorama name; determine the type based on the view query results or an existing URL, and ask the user if you can't tell the difference.
 
 ---
 
-## 交付格式与失败处理
+## Delivery format and failure handling
 
-成功时优先用固定的“类型 + ID”作 Markdown label，例如：
+When successful, the fixed "type + ID" will be used first as the Markdown label, for example:
 
 ```markdown
-[需求 7092625364](https://project.feishu.cn/xopenapp/story/detail/7092625364)
+[Requirement 7092625364](https://project.feishu.cn/xopenapp/story/detail/7092625364)
 ```
 
-若必须使用查询结果中的名称作为 label，先转义 `\\`、`[`、`]`、`(`、`)` 等 Markdown 元字符，避免不可信名称改变链接结构。
+If you must use the name in the query result as a label, first escape Markdown metacharacters such as `\\`, `[`, `]`, `(`, `)` to avoid untrusted names from changing the link structure.
 
-失败时：
+On failure:
 
-- host 缺失：请用户指定环境域名或配置当前 profile；
-- `simple_name` 缺失/不唯一：请用户确认空间，禁止用 `project_key` 替代；
-- 目标不存在或无权限：说明当前身份无法验证可访问性，不返回伪链接；
-- decoder 返回 `unknown` 或另一 `url_kind`：报告路由冲突或模板不支持，不返回候选链接；
-- `url decode` 报 unknown command：说明本地 CLI 版本过旧，建议升级；不要绕过校验后手拼交付。
+- host is missing: please specify the environment domain name or configure the current profile;
+- `simple_name` is missing/not unique: please confirm the space, and it is forbidden to replace it with `project_key`;
+- The target does not exist or has no permission: it means that the current identity cannot verify accessibility and no pseudo link will be returned;
+- decoder returns `unknown` or another `url_kind`: reports route conflict or template not supported, does not return candidate links;
+- `url decode` reports unknown command: it means that the local CLI version is too old, it is recommended to upgrade; do not bypass the verification and then hand-deliver.
 
-以上均为确定性失败；输入与环境没有变化时不要原样重试。
+The above are all deterministic failures; do not retry as is if the input and environment have not changed.

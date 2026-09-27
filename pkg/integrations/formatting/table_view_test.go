@@ -114,7 +114,7 @@ func TestTable_PriorityOrder(t *testing.T) {
 	}
 }
 
-// Per spec §"形状 A": --select=a,b,c renders the keys in order; missing keys
+// Per spec §"Shape A": --select=a,b,c renders the keys in order; missing keys
 // produce empty cells, never silently dropped. Before the #3 fix, `missing`
 // was filtered out and the user never saw they typed a bad key.
 func TestTable_SelectPartialMiss_RendersEmptyCells(t *testing.T) {

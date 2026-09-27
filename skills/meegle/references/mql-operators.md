@@ -1,86 +1,86 @@
-# MQL 运算符兼容性、数组函数与 Lambda
+# MQL operator compatibility, array functions and Lambda
 
-目录：1 运算符 × 字段类型兼容表 · 2 数组字段语义与树状匹配 · 3 数组与集合函数 · 4 多选字段决策顺序 · 5 Lambda 限制
+Contents: 1 Operator × Field type compatibility table · 2 Array field semantics and tree matching · 3 Array and aggregate functions · 4 Multi-select field decision order · 5 Lambda restrictions
 
-## 1. 运算符 × 字段类型兼容表（唯一权威表）
+## 1. Operator × field type compatibility table (unique authoritative table)
 
-违反本表报 `field not supported OPERATOR` / `operator not supported`。
+Violation of this form will report `field not supported OPERATOR` / `operator not supported`.
 
-| 字段类型 | 支持 | 不支持 |
+| Field type | Supported | Not supported |
 |---------|------|--------|
-| text / multi-pure-text | `=` `!=` `IN` `NOT IN` `LIKE` `NOT LIKE` `IS NULL` `IS NOT NULL` | 比较符、`BETWEEN`、`array_contains` |
-| multi-text | `LIKE` `NOT LIKE` `IS NULL` `IS NOT NULL` | 其它 |
-| select / radio | `=` `!=` `IN` `NOT IN` `IS NULL` `IS NOT NULL` | `LIKE`、比较符、`BETWEEN`、`array_contains`、`any_match` |
-| workitem_related_select / workitem_related_multi_select | `=` `!=` `IN` `NOT IN` `IS NULL` `IS NOT NULL`，右值必须是对端**精确全名**或 `'<id:work_item_id>'` | `LIKE`、比较符、`array_contains`、`any_match`；用户给的是简称或模糊名时**不要用等值**，改 `any_relation_match`，见 [mql-nodes-relations.md §5](mql-nodes-relations.md) |
-| tree-select（单选） | `=` `!=` `IN` `NOT IN` `IS NULL` `IS NOT NULL`（仅叶子精确匹配） | `LIKE`、比较符、`BETWEEN`、`array_contains`、`any_match`、父级级联 |
-| user | `=` `!=` `IN` `NOT IN` `array_contains` `IS NULL` `IS NOT NULL` | `LIKE`、比较符、`BETWEEN` |
-| link | `=` `!=` `LIKE` `NOT LIKE` `IS NULL` `IS NOT NULL` | `IN`、比较符、`BETWEEN`、`array_contains` |
-| signal | `=` `!=` `IN` `NOT IN`（值位见下） | `IS NULL` / `IS NOT NULL`（报 `operator not supported`）、其它 |
-| number（含 `work_item_id`） | `=` `!=` `IN` `NOT IN` `>` `>=` `<` `<=` `IS NULL` `IS NOT NULL` | `LIKE`、`BETWEEN`、`array_contains` |
-| array(varchar) | `=` `!=` `IN` `NOT IN` `array_contains` `NOT array_contains` `any_match` `none_match` `IS NULL` `IS NOT NULL` | `LIKE`、比较符、`BETWEEN` |
+| text / multi-pure-text | `=` `!=` `IN` `NOT IN` `LIKE` `NOT LIKE` `IS NULL` `IS NOT NULL` | Comparator, `BETWEEN`, `array_contains` |
+| multi-text | `LIKE` `NOT LIKE` `IS NULL` `IS NOT NULL` | Others |
+| select / radio | `=` `!=` `IN` `NOT IN` `IS NULL` `IS NOT NULL` | `LIKE`, comparison operator, `BETWEEN`, `array_contains`, `any_match` |
+| workitem_related_select / workitem_related_multi_select | `=` `!=` `IN` `NOT IN` `IS NULL` `IS NOT NULL`, the rvalue must be the **exact full name** of the peer** or `'<id:work_item_id>'' | `LIKE`, comparison operator, `array_contains`, `any_match`; when the user gives a short name or a fuzzy name, **do not use equivalent values**, change `any_relation_match`, see [mql-nodes-relations.md §5](mql-nodes-relations.md) |
+| tree-select (single selection) | `=` `!=` `IN` `NOT IN` `IS NULL` `IS NOT NULL` (only leaf exact match) | `LIKE`, comparison operator, `BETWEEN`, `array_contains`, `any_match`, parent cascade |
+| user | `=` `!=` `IN` `NOT IN` `array_contains` `IS NULL` `IS NOT NULL` | `LIKE`, comparison operator, `BETWEEN` |
+| link | `=` `!=` `LIKE` `NOT LIKE` `IS NULL` `IS NOT NULL` | `IN`, comparison operator, `BETWEEN`, `array_contains` |
+| signal | `=` `!=` `IN` `NOT IN` (see below for value bits) | `IS NULL` / `IS NOT NULL` (report `operator not supported`), others |
+| number (including `work_item_id`) | `=` `!=` `IN` `NOT IN` `>` `>=` `<` `<=` `IS NULL` `IS NOT NULL` | `LIKE`, `BETWEEN`, `array_contains` |
+| array(varchar) | `=` `!=` `IN` `NOT IN` `array_contains` `NOT array_contains` `any_match` `none_match` `IS NULL` `IS NOT NULL` | `LIKE`, comparator, `BETWEEN` |
 | date | `=` `!=` `>` `>=` `<` `<=` `BETWEEN` `RELATIVE_DATETIME_*` `IS NULL` `IS NOT NULL` | `LIKE`、`IN`、`array_contains` |
-| datetime（`schedule` / `precise_date`） | `>` `>=` `<` `<=` `BETWEEN` `RELATIVE_DATETIME_*` `IS NULL` `IS NOT NULL`，须先拆为 `` `__字段key_开始时间` `` / `` `__字段key_结束时间` `` | `=` `!=`、`LIKE`、`IN`、`array_contains` |
-| bool | `=` `!=` `IS NULL` `IS NOT NULL` | `IN`、`LIKE`、`BETWEEN`、`array_contains`、比较符 |
-| array(struct)（`compound_field`） | 不可直接在 WHERE 比较 | 需通过子字段或 `workitem get` 读取 |
-| `multi-file` | `SELECT` / `IS NULL` / `IS NOT NULL` | `LIKE`、比较符、`BETWEEN`、`array_contains`、`IN` |
+| datetime（`schedule` / `precise_date`) | `>` `>=` `<` `<=` `BETWEEN` `RELATIVE_DATETIME_*` `IS NULL` `IS NOT NULL`, must be split into `` `__field key_start time` `` / `` `__field key_end time` `` | `=` `!=`, `LIKE`, `IN`, `array_contains` |
+| bool | `=` `!=` `IS NULL` `IS NOT NULL` | `IN`, `LIKE`, `BETWEEN`, `array_contains`, comparison operators |
+| array(struct)(`compound_field`) | Cannot be compared directly in WHERE | Need to be read through subfield or `workitem get` |
+| `multi-file` | `SELECT` / `IS NULL` / `IS NOT NULL` | `LIKE`, comparison operator, `BETWEEN`, `array_contains`, `IN` |
 
-值位补充：
+Value bit supplement:
 
-- signal 查询值位仅接受 `option_name` label（`'已通过'` / `'未通过'` / `'处理中'` / `'暂无信息'`）；禁 `option_id`（`'passed'`）、`<id:option_id>`、`'true'/'false'/'null'`。
-  写入接口的值位规则相反（写 `option_id`），查询侧不要照搬。
-- `workitem_related_select` 值位：`= '<id:work_item_id>'` 或对端**精确全名**；裸 `work_item_id` 拒回 `attrValueLabel not found`。
-  用户只给了简称或名称片段时，等值必报 `attrValueLabel not found`，不要重猜名字，一律改写成关系判断：
+- The signal query value bit only accepts `option_name` label (`'passed' / `'not passed'` / `'processing'` / `'no information yet'`); prohibits `option_id` (`'passed``), `<id:option_id>`, `'true'/'false'/'null'`.
+The value bit rules for writing to the interface are opposite (write `option_id`), and do not copy them on the query side.
+- `workitem_related_select` value bit: `= '<id:work_item_id>'` or the **exact full name** of the peer; bare `work_item_id` rejects `attrValueLabel not found`.
+When the user only provides an abbreviation or a name fragment, the equivalent value must be reported as `attrValueLabel not found`. Do not guess the name again and rewrite it as a relationship judgment:
 
   ```sql
-  WHERE any_relation_match(`<关联字段key>`, x -> x.`name<target:all>` LIKE '%<名称片段>%')
+WHERE any_relation_match(`<relation field key>`, x -> x.`name<target:all>` LIKE '%<name fragment>%')
   ```
 
-  首参传 `workitem meta-fields` 返回的关联字段 key；对端字段引用形式（`<target:all>` 与 `<target:project_key::type_key>` 各自的适用范围）见 [mql-nodes-relations.md §5–6](mql-nodes-relations.md)。
-- `tree-multi-select` / `workitem_related_multi_select` 右值仅接受 label 或 `<id:option_id>` / `<id:work_item_id>` 包裹形式；裸 id 拒回 `metadata error`。
+The first parameter is the associated field key returned by `workitem meta-fields`; for the peer field reference form (the respective applicable scopes of `<target:all>` and `<target:project_key::type_key>`), see [mql-nodes-relations.md §5–6](mql-nodes-relations.md).
+- `tree-multi-select` / `workitem_related_multi_select` rvalue only accepts label or `<id:option_id>` / `<id:work_item_id>` wrapped form; bare id rejects `metadata error`.
 
-关联工作项字段优先遵循上表的专用限制，不套用下文通用数组函数规则。
+The associated work item fields preferentially follow the special restrictions in the above table, and the general array function rules below do not apply.
 
-## 2. 数组字段语义与树状匹配
+## 2. Array field semantics and tree matching
 
-- `=` / `!=` 按整组精确匹配；`IN` 按元素级 OR；`array_contains` 多参数为 AND（同时包含）；`any_match` 逐元素匹配。
-- 树状 / 级联字段父级匹配（含所有下级）：`tree-multi-select`（数组型）用 `any_match(field, x -> x = '<父级 label>')` 或 `` `field` IN ('<父级 label>') ``；
-  `array_contains` 仅精确 label 匹配、不含子级级联。`tree-select`（单选）不支持父级级联，仅按叶子 label / option_id 精确匹配。禁止写完整路径 `'<父级>/<叶子>'`。
-- 业务线等树状字段先 `workitem meta-fields --field-keys '["business"]'`（或 `--field-query 业务线`）确认叶子 option_id 与 label。
+- `=` / `!=` matches the entire group exactly; `IN` matches element-wise OR; `array_contains` multi-parameters are AND (contained simultaneously); `any_match` matches element-by-element.
+- Tree/cascade field parent matching (including all subordinates): `tree-multi-select` (array type) uses `any_match(field, x -> x = '<parent label>')` or `` `field` IN ('<parent label>') ``;
+`array_contains` Only exact label matches, no child cascades. `tree-select` (single selection) does not support parent cascading, only exact matching by leaf label / option_id. It is forbidden to write the full path `'<parent>/<leaf>'`.
+- For tree fields such as business line, first use `workitem meta-fields --field-keys '["business"]'` (or `--field-query business line`) to confirm the leaf option_id and label.
 
-## 3. 数组与集合函数
+## 3. Array and set functions
 
-| 函数 | 说明 |
+| Function | Description |
 |------|------|
-| `array_contains(field, e1 [,e2,...])` | 数组包含元素；多参数为 AND。右值形式按 §1 值位补充 |
-| `any_match(field, x -> pred)` | 任一元素满足；仅当值列表含函数（`team()` / `current_login_user()`）或多个 `<id:userkey>` 时使用 |
-| `none_match(field, x -> pred)` | 全部元素都不满足 |
-| `array_intersect(field, '[...]')` | 有交集；仅用于控件函数返回值（`risk_label()` 等），普通多选字段报 `array_intersect: invalid right_array`；第二参数必须是 JSON 数组字符串 |
+| `array_contains(field, e1 [,e2,...])` | Array contains elements; multiple parameters are AND. The rvalue form is supplemented by §1 value bits |
+| `any_match(field, x -> pred)` | Any element is satisfied; only used when the value list contains a function (`team()` / `current_login_user()`) or multiple `<id:userkey>` |
+| `none_match(field, x -> pred)` | All elements are not satisfied |
+| `array_intersect(field, '[...]')` | There is intersection; only used for control function return values ​​(`risk_label()`, etc.), ordinary multi-select fields report `array_intersect: invalid right_array`; the second parameter must be a JSON array string |
 
-## 4. 多选 / 数组字段决策顺序
+## 4. Multi-select/array field decision order
 
-1. 单元素或多元素 OR → `IN + 元组`
-2. 多元素 AND（同时包含）→ `array_contains(field, 'a', 'b')`
-3. 集合完全相等 → `` `field` = ('v1','v2') ``（元组，禁 JSON 数组字符串）
-4. 全不属于 → `NOT IN` 或 `none_match`；`NOT array_contains` 是「不同时包含」（至少缺一个），不是「全不属于」
-5. 树状父级匹配 → 见 §2
-6. 值列表含 `team()` / `current_login_user()`，或要在集合内判断多个 `<id:userkey>` → `any_match(x -> x IN (...))`
+1. Single element or multi-element OR → `IN + tuple`
+2. Multi-element AND (contains simultaneously) → `array_contains(field, 'a', 'b')`
+3. The sets are completely equal → `` `field` = ('v1','v2') `` (tuple, JSON array string)
+4. None → `NOT IN` or `none_match`; `NOT array_contains` is "not included at the same time" (at least one is missing), not "not at all"
+5. Tree parent matching → see §2
+6. The value list contains `team()` / `current_login_user()`, or multiple `<id:userkey>` → `any_match(x -> x IN (...))` must be judged in the set
 
 ```sql
-array_contains(`current_status_operator`, '<id:userkey>')        -- 单人命中（多人字段）
-`current_status_operator` IN ('<id:k1>', '<id:k2>')              -- 多人 OR
-array_contains(`tag`, '标签A', '标签B')                            -- 多标签 AND
-`tag` IS NULL                                                     -- 空判断
-any_match(`watchers`, x -> x IN (team(true, '真实团队名')))         -- 值列表含团队函数
+array_contains(`current_status_operator`, '<id:userkey>') -- single hit (multiplayer field)
+`current_status_operator` IN ('<id:k1>', '<id:k2>') -- multi-person OR
+array_contains(`tag`, 'Tag A', 'Tag B') -- Multiple tags AND
+`tag` IS NULL -- null judgment
+any_match(`watchers`, x -> x IN (team(true, 'real team name'))) -- list of values ​​containing team functions
 ```
 
-## 5. Lambda 限制
+## 5. Lambda limitations
 
-数组匹配函数 `any_match` / `none_match` 的 `x -> ...` 内部服务端只受理下列极简条件，其余拒回 `lambda predicate operator not supported: <OP>` / `unsupported lambda predicate`。
+The internal server of the `x -> ...` of the array matching function `any_match` / `none_match` only accepts the following minimal conditions, and rejects the rest as `lambda predicate operator not supported: <OP>` / `unsupported lambda predicate`.
 
-| ✅ 支持 | ❌ 不支持 |
+| ✅Supported | ❌ Not supported |
 |--------|----------|
 | `x = 'value'` | `x != 'a'`、`x NOT IN (...)` |
-| `x IN ('a','b',...)`（值可含 `team(...)` / `current_login_user()` / `<id:userkey>`） | `> >= < <=`、`LIKE`、`BETWEEN`、`IS NULL` |
-| 同变量 OR：`x = 'a' OR x = 'b'`（推荐改 `IN`） | `RELATIVE_DATETIME_*(x,...)`、`AND` 复合、嵌套 `any_match` / `none_match` |
+| `x IN ('a','b',...)` (value can contain `team(...)` / `current_login_user()` / `<id:userkey>`) | `> >= < <=`, `LIKE`, `BETWEEN`, `IS NULL` |
+| Same variable OR: `x = 'a' OR x = 'b'` (recommended to change to `IN`) | `RELATIVE_DATETIME_*(x,...)`, `AND` compound, nested `any_match` / `none_match` |
 
-决策：多选 / 数组字段优先顶层 `IN` / `NOT IN` / `array_contains` / `none_match`；`any_match` 第二参数必须是 `x -> ...` lambda，不接受数组字面量。
+Decision: multi-select / array fields first top-level `IN` / `NOT IN` / `array_contains` / `none_match`; `any_match` second argument must be `x -> ...` lambda, array literals are not accepted.

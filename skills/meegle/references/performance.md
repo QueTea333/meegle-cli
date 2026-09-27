@@ -1,23 +1,23 @@
-# 性能与并发调用指南
+# Performance and concurrent call guide
 
-本文件收录减少延迟的工程性规则。核心协议（字段格式、错误自愈）仍在 SKILL.md 主文件中。
+This document contains engineering rules for reducing delays. The core protocol (field formatting, error healing) is still in the main SKILL.md file.
 
-## 并行调用
+## Parallel calls
 
-无依赖的命令调用应并行发起，有依赖则必须串行。
+Command calls without dependencies should be initiated in parallel, while those with dependencies must be initiated serially.
 
-**必须串行**（前者输出是后者输入）：
+**Must be serial** (the output of the former is the input of the latter):
 - `project search` → `workitem meta-fields` → `workitem query`
 - `workitem get` → `workflow transition` / `workitem update`
 - `workitem meta-fields` → `workitem create`
 
-**可并行**：
-- `workitem meta-fields` 和 `workitem meta-roles`（同类型）
-- 多种工作项类型的 `workitem meta-fields`（如 story + issue）
-- 各条件的 count 查询、多人排期分批查询
+**Parallelizable**:
+- `workitem meta-fields` and `workitem meta-roles` (same type)
+- `workitem meta-fields` for multiple work item types (such as story + issue)
+- Count query for each condition, multi-person scheduling batch query
 
-## 大结果处理
+## Large result processing
 
-- **分批查询**：`workhour list-schedule` 多人时拆成每批 ≤ 20 人并行
-- **精简 SELECT**：只选必要字段，避免富文本等大体积字段
-- **按需翻页**：先读首页取 `list[0].count`；`workitem query` 要全量时用 `--session-id` + `--group-pagination-list` 逐页取（SKILL.md「翻页取全量」），不要用 `LIMIT offset, n`
+- **Query in batches**: `workhour list-schedule` split into batches when there are multiple people ≤ 20 people in parallel
+- **Simplified SELECT**: Select only necessary fields and avoid large fields such as rich text
+- **Page on demand**: First read the homepage to get `list[0].count`; `workitem query` uses `--session-id` + `--group-pagination-list` to get the full amount page by page (SKILL.md "page to get the full amount"), do not use `LIMIT offset, n`

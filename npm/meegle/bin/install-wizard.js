@@ -38,26 +38,26 @@ const messages = {
     nonTtyHost: "No TTY detected and no --host was provided. Using default host: %s",
   },
   zh: {
-    setup: "正在设置 Meegle CLI...",
-    language: "请选择语言",
-    installing: "正在全局安装 %s...",
-    upgrading: "正在升级 %s (v%s -> v%s)...",
-    installedSkip: "已全局安装 (v%s)，跳过",
-    installed: "CLI 已全局安装",
-    skills: "正在安装 AI Agent Skill...",
-    skillsDone: "AI Agent Skill 已安装",
-    hostExisting: "发现已有 host: %s，继续使用？",
-    hostSelect: "请选择 Meegle 站点",
-    hostCustom: "自定义域名",
-    hostInput: "请输入自定义域名，例如 project.feishu.cn: ",
-    hostConfigured: "Host 已配置: %s",
-    authSkip: "已跳过授权。后续可运行: meegle auth login",
-    authAlready: "已登录，跳过授权",
-    authConfirm: "现在登录？",
-    authBrowser: "正在启动浏览器 OAuth 登录...",
-    authDevice: "正在启动 Device Code 登录...",
-    done: "安装完成。可以试试: meegle mywork todo --action this_week --page-num 1",
-    nonTtyHost: "当前不是交互终端且未传 --host，将使用默认 host: %s",
+    setup: "Setting up Meegle CLI...",
+    language: "Please select language",
+    installing: "Installing %s globally...",
+    upgrading: "Upgrading %s (v%s -> v%s)...",
+    installedSkip: "Already globally installed (v%s), skipping",
+    installed: "CLI globally installed",
+    skills: "Installing AI Agent Skill...",
+    skillsDone: "AI Agent Skill installed",
+    hostExisting: "Found existing host: %s, continue using?",
+    hostSelect: "Please select Meegle site",
+    hostCustom: "Custom Domain",
+hostInput: "Please enter Custom Domain, for example project.feishu.cn: ",
+    hostConfigured: "Host configured: %s",
+    authSkip: "Authorization skipped. You can run later: meegle auth login",
+    authAlready: "Already logged in, skipping authorization",
+    authConfirm: "Log in now?",
+    authBrowser: "Starting browser OAuth login...",
+    authDevice: "Starting Device Code login...",
+    done: "Installation complete. Try: meegle mywork todo --action this_week --page-num 1",
+    nonTtyHost: "Not an interactive terminal and no --host passed, using default host: %s",
   },
 };
 
@@ -263,9 +263,9 @@ async function selectLanguage(opts) {
   if (opts.lang) return opts.lang;
   const locale = (process.env.LANG || process.env.LANGUAGE || "").toLowerCase();
   if (!process.stdin.isTTY || opts.yes) return locale.includes("zh") ? "zh" : "en";
-  return select("Select language / 请选择语言", [
+  return select("Select language / Please select language", [
     { label: "English", value: "en" },
-    { label: "中文", value: "zh" },
+    { label: "Chinese", value: "zh" },
   ]);
 }
 

@@ -1,58 +1,58 @@
-# CLI 使用指南
+# CLI usage guide
 
-## 前置条件
+## Preconditions
 
-运行环境需要 Node.js 18+。所有命令通过 `meegle` 执行。
+The running environment requires Node.js 18+. All commands are executed through `meegle`.
 
-## 命令结构
+## Command structure
 
 ```bash
 meegle <resource> <method> [flags] --format json
 ```
 
-命令采用 `resource method` 两级结构。所有输出推荐使用 `--format json` 获取结构化数据。
+The command adopts `resource method` two-level structure. For all output, it is recommended to use `--format json` to obtain structured data.
 
-## 全局 Flag
+## Global Flag
 
-| Flag | 说明 |
+| Flag | Description |
 |------|------|
-| `--format json\|table\|ndjson` | 输出格式，默认 json |
-| `--select <props>` | 选取输出属性，逗号分隔（支持 dot path，如 `name,owner.name`） |
-| `--profile <name>` | 临时切换 profile |
-| `--verbose` | 显示详细日志 |
-| `--refresh` | 从服务端刷新本地命令缓存（旁路 24h cache） |
+| `--format json\|table\|ndjson` | Output format, default json |
+| `--select <props>` | Select output properties, comma separated (support dot path, such as `name,owner.name`) |
+| `--profile <name>` | Temporarily switch profile |
+| `--verbose` | Show detailed logs |
+| `--refresh` | Refresh the local command cache from the server (bypass 24h cache) |
 
-## 参数传递
+## Parameter passing
 
-几种方式，优先级从高到低：
+Several ways, priority from high to low:
 
-1. **Flag 模式**（推荐）：`--project-key PROJ --work-item-type story`
-2. **--fields 模式**（写工作项字段，可重复）：`--fields '{"field_key":"name","field_value":"任务标题"}' --fields '{"field_key":"priority","field_value":"1"}'`
-3. **--params 模式**（完整 JSON 兜底）：`--params '{"fields":[{"field_key":"name","field_value":"任务标题"}]}'`
-4. **--set 模式**（仅顶层参数快捷写法，不支持 fields[]）：`--set page_num=1` 等价于 `--page-num 1`，支持 dot-path 嵌套；不要用它写工作项字段
+1. **Flag mode** (recommended): `--project-key PROJ --work-item-type story`
+2. **--fields mode** (write work item fields, repeatable): `--fields '{"field_key":"name","field_value":"Task title"}' --fields '{"field_key":"priority","field_value":"1"}'`
+3. **--params mode** (complete JSON summary): `--params '{"fields":[{"field_key":"name","field_value":"Task title"}]}'`
+4. **--set mode** (only top-level parameter shortcut, fields[] is not supported): `--set page_num=1` is equivalent to `--page-num 1`, supports dot-path nesting; do not use it to write work item fields
 
-Flag 覆盖 `--params`；`--set` 只影响顶层参数，**不会**写到 `fields[]`。
+Flag overrides `--params`; `--set` only affects top-level parameters and will not be written to `fields[]`.
 
-**`field_value` 填写规则**：固定填字符串。标量直接填字符串，如 `"100"`、`"true"`；数组或对象填序列化后的 JSON 字符串，如 `"[\"u1\",\"u2\"]"`、`"{\"type\":\"auto\"}"`。不要给 `field_value` 传原生 number、array 或 object。
+**`field_value` filling rules**: fixed filling string. Scalars are filled with strings directly, such as `"100"`, `"true"`; arrays or objects are filled with serialized JSON strings, such as `"[\"u1\",\"u2\"]"`, `"{\"type\":\"auto\"}"`. Do not pass raw number, array or object to `field_value`.
 
-此限制只针对 `field_value`；`fields`、`role_operate`、`node_schedule` 等参数仍按各自 schema 传原生数组或对象。
+This restriction only applies to `field_value`; parameters such as `fields`, `role_operate`, `node_schedule` still pass native arrays or objects according to their respective schema.
 
-## 命令发现
+## Command discovery
 
-CLI 的命令和参数会随版本更新。遇到不确定的命令或参数时，使用 `inspect` 获取最新信息：
+CLI commands and parameters will be updated with versions. When encountering an uncertain command or parameter, use `inspect` to get the latest information:
 
 ```bash
-meegle inspect                    # 列出所有可用命令
-meegle inspect workitem.create    # 查看具体命令的参数 schema
+meegle inspect # List all available commands
+meegle inspect workitem.create # View the parameter schema of a specific command
 ```
 
-> 命令清单本地缓存 24 小时。如果 `inspect` 输出的参数与服务端实际不符，或服务端有新命令但 CLI 报 `unknown command`，加上 `--refresh` 强制从服务端重新拉取最新清单：
+> Command list is cached locally for 24 hours. If the parameters output by `inspect` do not match the actual server, or the server has a new command but the CLI reports `unknown command`, add `--refresh` to force the latest list to be re-pulled from the server:
 > ```bash
 > meegle --refresh inspect workitem.create
 > ```
 
-## 输出处理
+## Output processing
 
-- 始终使用 `--format json` 获取结构化输出，方便解析
-- 使用 `--select` 精简返回字段，如 `--select id,name,current_nodes.name`
-- 命令返回错误时，JSON 中包含 `error` 和 `message` 字段
+- Always use `--format json` to get structured output for easy parsing
+- Use `--select` to simplify the returned fields, such as `--select id,name,current_nodes.name`
+- When the command returns an error, the JSON contains the `error` and `message` fields

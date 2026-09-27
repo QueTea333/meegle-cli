@@ -1,10 +1,10 @@
-# Meegle CLI 扩展 V1 使用示例
+# Meegle CLI [translated text] V1 [translated text] [translated text]
 
-V1 是“源码依赖 + 编译期装配”：企业程序引用本仓库，在自己的 `main` 包里用空白导入注册扩展，然后编译出企业版 `meegle`。不需要修改 Meegle 源码，也不需要新增服务端接口；V1 不支持运行时下载插件。
+V1 [translated text] “ [translated text] [translated text] + [translated text] [translated text] [translated text] ”： [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] `main` [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] `meegle`。 [translated text] [translated text] [translated text] Meegle [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ；V1 [translated text] [translated text] [translated text] [translated text] [translated text] 。
 
-## 1. 完全不扩展
+## 1. [translated text] [translated text] [translated text]
 
-最小程序见 [`no-extension/main.go`](./no-extension/main.go)：
+ [translated text] [translated text] [translated text] [`no-extension/main.go`](./no-extension/main.go)：
 
 ```go
 package main
@@ -20,7 +20,7 @@ func main() {
 }
 ```
 
-它与官方 CLI 使用方式一致：
+ [translated text] [translated text] CLI [translated text] [translated text] [translated text] ：
 
 ```bash
 go build -o meegle ./examples/no-extension
@@ -29,11 +29,11 @@ go build -o meegle ./examples/no-extension
 ./meegle workitem get --project-key demo --work-item-id 123
 ```
 
-没有注册扩展时，凭证、网络和命令执行都走现有内置逻辑。
+ [translated text] [translated text] [translated text] [translated text] ， [translated text] 、 [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 。
 
-## 2. 企业版 CLI 的装配方式
+## 2. [translated text] [translated text] CLI [translated text] [translated text] [translated text]
 
-完整程序见 [`enterprise-cli/main.go`](./enterprise-cli/main.go)：
+ [translated text] [translated text] [translated text] [`enterprise-cli/main.go`](./enterprise-cli/main.go)：
 
 ```go
 package main
@@ -54,9 +54,9 @@ func main() {
 }
 ```
 
-`version` 是企业发行版自己的语义化版本。如果企业插件使用 `RequireCLI`，必须调用 `ExecuteWithVersion`，让兼容性判断使用企业二进制版本；不声明版本约束时仍可使用 `Execute()`。本地 `go run` 或未注入版本的 `dev` 构建不会绕过约束，而会在错误链中提示使用 `ExecuteWithVersion`。
+`version` [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 。 [translated text] [translated text] [translated text] [translated text] `RequireCLI`， [translated text] [translated text] `ExecuteWithVersion`， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ； [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] `Execute()`。 [translated text] `go run` [translated text] [translated text] [translated text] [translated text] `dev` [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] `ExecuteWithVersion`。
 
-企业只需要维护装配层和自己的扩展包：
+ [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ：
 
 ```bash
 go build -o corp-meegle ./examples/enterprise-cli
@@ -67,17 +67,17 @@ CORP_DEVICE_TRUST=trusted \
 ./corp-meegle workitem get --project-key demo --work-item-id 123
 ```
 
-同一个二进制中的扩展会同时作用于静态命令和 MCP 动态命令。MCP 更新 `tools/list` 后，携带 `metadata.resource` 和 `metadata.method` 的新工具会注册成对应命令，并自动经过同一组治理钩子；已有工具也可以继续使用 CLI 内置的 fallback 映射。
+ [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] MCP [translated text] [translated text] 。MCP [translated text] `tools/list` [translated text] ， [translated text] `metadata.resource` [translated text] `metadata.method` [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ； [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] CLI [translated text] [translated text] fallback [translated text] 。
 
-## 3. Credential：企业提供账号和 token
+## 3. Credential： [translated text] [translated text] [translated text] [translated text] token
 
-实现 `credential.Provider`，通常在扩展包的 `init` 中注册：
+ [translated text] `credential.Provider`， [translated text] [translated text] [translated text] [translated text] `init` [translated text] [translated text] ：
 
 ```go
 type provider struct{}
 
 func (provider) Name() string  { return "corp-sso" }
-func (provider) Priority() int { return 1 } // 可选；数字越小越先执行，默认 10
+func (provider) Priority() int { return 1 } // [translated text] ； [translated text] [translated text] [translated text] [translated text] ， [translated text] 10
 
 func (provider) ResolveAccount(ctx context.Context) (*credential.Account, error) {
 	return &credential.Account{
@@ -97,34 +97,34 @@ func (provider) ResolveToken(ctx context.Context, spec credential.TokenSpec) (*c
 func init() { credential.Register(provider{}) }
 ```
 
-Provider 有四种结果：
+Provider [translated text] [translated text] [translated text] ：
 
-- `value, nil`：命中，使用企业返回的账号或 token。
-- `nil, nil`：跳过，继续下一个 Provider；全部跳过后回退到内置凭证。
-- `nil, error`：运行失败，立即停止解析且不回退，例如企业 SSO 暂时不可用。
-- `nil, &credential.BlockError{...}`：Provider 被调用时立即停止身份解析且不回退，明确表示企业策略主动拒绝，例如设备不可信、租户被禁用。
+- `value, nil`： [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] token。
+- `nil, nil`： [translated text] ， [translated text] [translated text] [translated text] Provider； [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 。
+- `nil, error`： [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] SSO [translated text] [translated text] [translated text] 。
+- `nil, &credential.BlockError{...}`：Provider [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] 、 [translated text] [translated text] [translated text] 。
 
-Credential 是按需身份解析器，不是全局启动 Hook。`--help`、`version`、`config`、`completion`、`url`、`extension` 等本地入口在构造阶段不会调用 Provider；动态业务命令仍会调用并 fail-closed。若企业必须让设备信任策略阻断包括帮助在内的所有命令，应在 Platform Lifecycle/Policy 中显式实现。
+Credential [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] Hook。`--help`、`version`、`config`、`completion`、`url`、`extension` [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] Provider； [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] fail-closed。 [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] Platform Lifecycle/Policy [translated text] [translated text] [translated text] 。
 
-`Name()` 只在注册时读取一次，必须返回由小写字母、数字和连字符组成的非敏感标识；非法名称以及 Name/Priority 回调的 panic 或超时会让 CLI 启动 fail-closed。Account/Token 回调最多等待 30 秒，并且应主动监听传入的 `ctx`。`Token.Source` 只接受短标签，非法值在诊断中固定显示为 `<invalid>`；自定义 `Token.Header` 必须是合法 HTTP Header 名，否则在发送请求前拒绝。
+`Name()` [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] 、 [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ； [translated text] [translated text] [translated text] Name/Priority [translated text] [translated text] panic [translated text] [translated text] [translated text] CLI [translated text] fail-closed。Account/Token [translated text] [translated text] [translated text] 30 [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] `ctx`。`Token.Source` [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] `<invalid>`； [translated text] [translated text] `Token.Header` [translated text] [translated text] [translated text] HTTP Header [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] 。
 
-自定义鉴权头也受支持：
+ [translated text] [translated text] [translated text] [translated text] [translated text] ：
 
 ```go
 return &credential.Token{
 	Value:  token,
-	Header: "X-Enterprise-Token", // 不再写 Authorization: Bearer ...
+	Header: "X-Enterprise-Token", // [translated text] [translated text] Authorization: Bearer ...
 	Source: "corp-sso",
 }, nil
 ```
 
-一次 CLI 执行只解析一次身份；MCP 的 `tools/list` 和后续 `tools/call` 使用同一份会话 token，避免两次临时 token 不一致。
+ [translated text] CLI [translated text] [translated text] [translated text] [translated text] [translated text] ；MCP [translated text] `tools/list` [translated text] [translated text] `tools/call` [translated text] [translated text] [translated text] [translated text] token， [translated text] [translated text] [translated text] token [translated text] [translated text] 。
 
-启用自定义认证 Header 后，CLI 会删除 profile headers 中残留的 `Authorization` 和同名旧认证值，只发送 Provider 本次返回的 Token。
+ [translated text] [translated text] [translated text] [translated text] Header [translated text] ，CLI [translated text] [translated text] profile headers [translated text] [translated text] `Authorization` [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] Provider [translated text] [translated text] [translated text] Token。
 
-## 4. Transport：统一接管 CLI 发出的 HTTP 请求
+## 4. Transport： [translated text] [translated text] CLI [translated text] [translated text] HTTP [translated text]
 
-Transport 可加请求头、选择代理或专线、记录耗时，也可以在发出请求前阻断：
+Transport [translated text] [translated text] [translated text] 、 [translated text] [translated text] [translated text] [translated text] 、 [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ：
 
 ```go
 type provider struct{}
@@ -135,14 +135,14 @@ func (provider) ResolveInterceptor(context.Context) transport.Interceptor {
 	return interceptor{}
 }
 
-// 普通前置/后置钩子。
+// [translated text] [translated text] / [translated text] [translated text] 。
 func (interceptor) PreRoundTrip(req *http.Request) func(*http.Response, error) {
 	started := time.Now()
 	req.Header.Set("X-Corp-Caller", "meegle-cli")
-	host := req.URL.Host // 复制需要的值，不在后置 Hook 中继续持有 req。
+	host := req.URL.Host // [translated text] [translated text] [translated text] ， [translated text] [translated text] Hook [translated text] [translated text] [translated text] req。
 	return func(resp *http.Response, err error) {
-		// resp 是元数据快照：可读取状态码/Header，但 Body 固定为
-		// http.NoBody，不能在这里读取业务响应内容。
+		// resp [translated text] [translated text] [translated text] ： [translated text] [translated text] [translated text] /Header， [translated text] Body [translated text] [translated text]
+		// http.NoBody， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 。
 		recordLatency(host, time.Since(started), resp, err)
 	}
 }
@@ -150,7 +150,7 @@ func (interceptor) PreRoundTrip(req *http.Request) func(*http.Response, error) {
 func init() { transport.Register(provider{}) }
 ```
 
-需要阻断时，再实现 `AbortableInterceptor`：
+ [translated text] [translated text] [translated text] ， [translated text] [translated text] `AbortableInterceptor`：
 
 ```go
 func (interceptor) PreRoundTripE(req *http.Request) (func(*http.Response, error), error) {
@@ -161,20 +161,20 @@ func (interceptor) PreRoundTripE(req *http.Request) (func(*http.Response, error)
 }
 ```
 
-V1 的 Transport 覆盖：
+V1 [translated text] Transport [translated text] ：
 
-- MCP 动态发现 `tools/list`。
-- MCP 命令调用 `tools/call`，包括 401 后的重试。
-- OAuth discovery、client 注册、device-code、token exchange 和 token refresh。
-- 附件上传、下载的对象存储 HTTP 请求。
+- MCP [translated text] [translated text] `tools/list`。
+- MCP [translated text] [translated text] `tools/call`， [translated text] 401 [translated text] [translated text] 。
+- OAuth discovery、client [translated text] 、device-code、token exchange [translated text] token refresh。
+- [translated text] [translated text] 、 [translated text] [translated text] [translated text] [translated text] HTTP [translated text] 。
 
-只允许一个有效 Transport Provider；后注册者覆盖先注册者。实现使用 CLI 专属的 `http.Client`，不会替换进程级 `http.DefaultClient`。Provider、前置 Hook 和后置 Hook 各自最多运行 30 秒；真实 MCP、OAuth 和附件请求继续使用调用方 Context 与原 HTTP Client timeout，所以启用扩展不会截断大文件上传下载或慢服务端操作。内置安全基线仍保留 10 次重定向上限，并在调用已有 `CheckRedirect` 前冻结原始 scheme；回调即使修改目标或重定向历史，也不能把 HTTPS 降级为 HTTP。MCP 的 Bearer Token 和自定义 Token Header 还会独立执行精确 origin 重定向检查，即使没有注册 Transport Provider 也不会被带到降级、换端口或其他域名的目标。前置回调拿到注入凭证后的真实 Request，因此进程内代码在技术上可以读取、修改或删除认证 Header；CLI 不提供进程内安全隔离，也不会冻结 Header 值，只应注册经过审查的可信 Transport。认证值仍应由 Credential 提供，Transport 通常只增加网络、路由和审计信息。读取 `req.Body` 会消费请求内容，正常返回前必须恢复；自定义 Body 必须遵守 `net/http` 的并发 `Read/Close` 契约，Context 结束或回调返回后不得继续访问 Request。后置回调只拿到状态码、Header、Trailer、Request 等元数据副本，`Body` 固定为 `http.NoBody`，`resp.Request.Context()` 携带独立的后置 Hook 截止时间，因此不会消费或占住业务响应流。后置回调超时后，CLI 会返回稳定错误并立即释放真实响应体。Go 不能强制终止忽略截止信号的第三方函数，因此企业回调仍应保证在合理时间内返回。
+ [translated text] [translated text] [translated text] [translated text] Transport Provider； [translated text] [translated text] [translated text] [translated text] [translated text] 。 [translated text] [translated text] CLI [translated text] [translated text] `http.Client`， [translated text] [translated text] [translated text] [translated text] `http.DefaultClient`。Provider、 [translated text] Hook [translated text] [translated text] Hook [translated text] [translated text] [translated text] 30 [translated text] ； [translated text] MCP、OAuth [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] Context [translated text] HTTP Client timeout， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 。 [translated text] [translated text] [translated text] [translated text] [translated text] 10 [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] `CheckRedirect` [translated text] [translated text] [translated text] scheme； [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] HTTPS [translated text] [translated text] HTTP。MCP [translated text] Bearer Token [translated text] [translated text] Token Header [translated text] [translated text] [translated text] [translated text] origin [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] Transport Provider [translated text] [translated text] [translated text] [translated text] 、 [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 。 [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] Request， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 、 [translated text] [translated text] [translated text] [translated text] Header；CLI [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] Header [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] Transport。 [translated text] [translated text] [translated text] Credential [translated text] ，Transport [translated text] [translated text] [translated text] [translated text] 、 [translated text] [translated text] [translated text] [translated text] 。 [translated text] `req.Body` [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] ； [translated text] [translated text] Body [translated text] [translated text] `net/http` [translated text] [translated text] `Read/Close` [translated text] ，Context [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] Request。 [translated text] [translated text] [translated text] [translated text] [translated text] 、Header、Trailer、Request [translated text] [translated text] [translated text] ，`Body` [translated text] [translated text] `http.NoBody`，`resp.Request.Context()` [translated text] [translated text] [translated text] [translated text] Hook [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 。 [translated text] [translated text] [translated text] [translated text] ，CLI [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 。Go [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 。
 
-## 5. Platform：观察、包装和限制命令
+## 5. Platform： [translated text] 、 [translated text] [translated text] [translated text] [translated text]
 
-### 5.1 前置和后置观察
+### 5.1 [translated text] [translated text] [translated text] [translated text]
 
-Observer 只观察，不改变命令结果：
+Observer [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] ：
 
 ```go
 builder.Observer(platform.Before, "audit-start", platform.All(),
@@ -189,9 +189,9 @@ builder.Observer(platform.After, "audit-result", platform.All(),
 	})
 ```
 
-### 5.2 包装命令
+### 5.2 [translated text] [translated text]
 
-Wrapper 可以在命令前后执行逻辑，也可以返回错误中止执行：
+Wrapper [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ：
 
 ```go
 builder.Wrap("change-ticket", platform.ByWrite(), func(next platform.Handler) platform.Handler {
@@ -207,11 +207,11 @@ builder.Wrap("change-ticket", platform.ByWrite(), func(next platform.Handler) pl
 })
 ```
 
-每次 Wrapper 调用最多执行一次 `next`，并且必须在 Wrapper 返回前发起；运行时会等待已经进入的 `next` 完成，防止业务 Handler 在命令结束后继续访问 Cobra、IO 或连接资源。`next` 返回非 nil 错误时，即使 Wrapper 忽略该错误并返回 nil，最终命令仍然失败，避免退出码和审计结果被误报为成功。因此 Wrapper 和下游 Handler 都应监听传入的 `ctx`，并直接返回 `next` 的错误。
+ [translated text] Wrapper [translated text] [translated text] [translated text] [translated text] `next`， [translated text] [translated text] [translated text] Wrapper [translated text] [translated text] [translated text] ； [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] `next` [translated text] ， [translated text] [translated text] Handler [translated text] [translated text] [translated text] [translated text] [translated text] Cobra、IO [translated text] [translated text] [translated text] 。`next` [translated text] [translated text] nil [translated text] [translated text] ， [translated text] Wrapper [translated text] [translated text] [translated text] [translated text] nil， [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 。 [translated text] Wrapper [translated text] [translated text] Handler [translated text] [translated text] [translated text] [translated text] `ctx`， [translated text] [translated text] [translated text] `next` [translated text] [translated text] 。
 
-### 5.3 选择命令
+### 5.3 [translated text] [translated text]
 
-选择器适用于静态命令和动态命令：
+ [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ：
 
 ```go
 platform.All()
@@ -223,15 +223,15 @@ platform.ByWrite()
 platform.ByExactRisk(platform.RiskHighRiskWrite)
 platform.ByIdentity(platform.IdentityUser)
 
-// 可组合
+// [translated text] [translated text]
 platform.ByDomain("workitem").And(platform.ByWrite())
 platform.ByReadOnly().Or(platform.ByCommandPath("version"))
 platform.ByCommandPath("auth/**").Not()
 ```
 
-`*` 匹配一个路径段中的字符，`**` 匹配零个或多个完整路径段。
+`*` [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ，`**` [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 。
 
-### 5.4 生命周期
+### 5.4 [translated text] [translated text]
 
 ```go
 builder.
@@ -243,11 +243,11 @@ builder.
 	})
 ```
 
-每次进程执行各触发一次 startup 和 shutdown。插件元数据/Install 和每个 startup Hook 各有 2 秒安全边界：fail-open 超时会跳过且不影响后续插件，fail-closed 超时会终止 CLI，Install 超时后的迟到注册不会生效。shutdown 最长等待 2 秒；某个 fail-closed shutdown Hook 失败时，其余 Hook 仍会在这一个共享预算内继续清理，最终返回第一个失败。
+ [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] startup [translated text] shutdown。 [translated text] [translated text] [translated text] /Install [translated text] [translated text] startup Hook [translated text] 2 [translated text] [translated text] [translated text] ：fail-open [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ，fail-closed [translated text] [translated text] [translated text] CLI，Install [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 。shutdown [translated text] [translated text] 2 [translated text] ； [translated text] fail-closed shutdown Hook [translated text] [translated text] ， [translated text] Hook [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] 。
 
-### 5.5 Restrict 权限规则
+### 5.5 Restrict [translated text] [translated text]
 
-只读 Agent 示例：
+ [translated text] Agent [translated text] ：
 
 ```go
 builder.Restrict(&platform.Rule{
@@ -259,17 +259,17 @@ builder.Restrict(&platform.Rule{
 })
 ```
 
-`extension/**` 用于在业务 Allow 列表生效后保留六个脱敏诊断命令。Restrict 同样治理诊断命令；只有明确希望隐藏诊断信息时才应移除该路径。
+`extension/**` [translated text] [translated text] [translated text] Allow [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] Diagnostic Commands。Restrict [translated text] [translated text] Diagnostic Commands； [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 。
 
-执行和帮助展示使用同一条策略：被拒绝的命令不会出现在帮助中；即使用户直接输入隐藏命令，执行前仍会再次拒绝。
+ [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ： [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ； [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] 。
 
-风险等级从低到高为 `read`、`write`、`high-risk-write`。会发布线上 WBS 或丢弃未发布 WBS 草稿的命令属于 `high-risk-write`；未知 MCP 工具没有风险标记，启用 `MaxRisk` 时默认拒绝，只有显式设置 `AllowUnannotated: true` 才放行。
+ [translated text] [translated text] [translated text] [translated text] [translated text] `read`、`write`、`high-risk-write`。 [translated text] [translated text] [translated text] WBS [translated text] [translated text] [translated text] WBS [translated text] [translated text] [translated text] [translated text] `high-risk-write`； [translated text] MCP [translated text] [translated text] [translated text] [translated text] ， [translated text] `MaxRisk` [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] `AllowUnannotated: true` [translated text] [translated text] 。
 
-同一进程只允许一个插件拥有 Restrict，避免多个插件之间出现不清晰的策略归属。该插件可以注册多条 Rule，但命令必须同时满足每一条 Rule；任意 Deny 命中都会全局拒绝，宽泛 Rule 不能绕过更窄 Rule 的路径、风险或身份限制。该插件必须 fail-closed。
+ [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] Restrict， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 。 [translated text] [translated text] [translated text] [translated text] [translated text] Rule， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] Rule； [translated text] Deny [translated text] [translated text] [translated text] [translated text] ， [translated text] Rule [translated text] [translated text] [translated text] Rule [translated text] [translated text] 、 [translated text] [translated text] [translated text] [translated text] 。 [translated text] [translated text] [translated text] fail-closed。
 
-显式使用 `--format json` 或 `--format ndjson` 时，拒绝结果使用统一错误 envelope，错误码为 `CLIENT_COMMAND_DENIED`，`detail` 中包含 rule、reason code 和非敏感 policy source，便于 Agent 稳定处理。CLI App 构造前发生的 Credential 与 Platform 启动失败也使用同一错误 envelope，分别暴露 `CLIENT_CREDENTIAL_RESOLUTION_FAILED` 和 `CLIENT_EXTENSION_INSTALL_FAILED`。扩展运行失败和主动中止分别使用 `CLIENT_EXTENSION_RUNTIME_FAILED`、`CLIENT_EXTENSION_ABORTED`，原始回调错误不会被写入公开输出。
+ [translated text] [translated text] `--format json` [translated text] `--format ndjson` [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] envelope， [translated text] [translated text] `CLIENT_COMMAND_DENIED`，`detail` [translated text] [translated text] rule、reason code [translated text] [translated text] policy source， [translated text] Agent [translated text] [translated text] 。CLI App [translated text] [translated text] [translated text] Credential [translated text] Platform [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] envelope， [translated text] [translated text] `CLIENT_CREDENTIAL_RESOLUTION_FAILED` [translated text] `CLIENT_EXTENSION_INSTALL_FAILED`。 [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] `CLIENT_EXTENSION_RUNTIME_FAILED`、`CLIENT_EXTENSION_ABORTED`， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 。
 
-### 5.6 完整注册
+### 5.6 [translated text] [translated text]
 
 ```go
 func init() {
@@ -286,20 +286,20 @@ func init() {
 }
 ```
 
-`RequireCLI` 支持精确版本和空格/逗号分隔的比较条件，例如 `1.2.3`、`>=1.2.0 <2.0.0`、`>= 1.2.0, < 2.0.0`。普通审计插件可以 `FailOpen`：安装或版本检查失败时跳过；Restrict 插件强制 `FailClosed`：失败时 CLI 不启动。使用 Builder 时，调用 `Restrict(...)` 会自动切换为 fail-closed；手写 `Plugin` 如果同时声明 `Restricts: true` 和 `FailurePolicy: FailOpen`，CLI 会在调用 `Install` 前直接启动失败，不会静默跳过策略。
+`RequireCLI` [translated text] [translated text] [translated text] [translated text] [translated text] / [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] `1.2.3`、`>=1.2.0 <2.0.0`、`>= 1.2.0, < 2.0.0`。 [translated text] [translated text] [translated text] [translated text] `FailOpen`： [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ；Restrict [translated text] [translated text] `FailClosed`： [translated text] [translated text] CLI [translated text] [translated text] 。 [translated text] Builder [translated text] ， [translated text] `Restrict(...)` [translated text] [translated text] [translated text] fail-closed； [translated text] `Plugin` [translated text] [translated text] [translated text] `Restricts: true` [translated text] `FailurePolicy: FailOpen`，CLI [translated text] [translated text] `Install` [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] 。
 
-## 6. 静态命令、动态命令和刷新
+## 6. [translated text] [translated text] 、 [translated text] [translated text] [translated text] [translated text]
 
-- `auth`、`config`、`inspect`、`completion`、`url`、`version`、`extension` 是静态命令。
-- 业务命令来自 MCP `tools/list`，例如 `workitem get`、`view list`，属于动态命令。新工具应提供 `metadata.resource` 和 `metadata.method`；没有 metadata 的已有工具可以使用内置 fallback 映射。
-- 静态根命令和已有 fallback 映射优先级更高，MCP metadata 不能把远端工具注册成 `auth status` 等本地路径，也不能改写已有工具的稳定命令路径。
-- 单个动态工具的 wire 结构、命名、重复路径、Flag 定义或资源规模不合法时，只跳过该工具；其他动态工具、静态命令和 SDK 仍可使用。帮助文本会移除控制字符，缺少 description 会生成固定安全文本。
-- `meegle --refresh ...` 或缓存重建后，Cobra 命令树会重建；企业静态命令和 Platform 钩子会自动重新挂载。
-- SDK 也会动态发现 MCP tool 并建立内部工具注册表，但不会生成命令行命令，也不会读取上述 CLI 全局扩展注册表。
+- `auth`、`config`、`inspect`、`completion`、`url`、`version`、`extension` [translated text] [translated text] [translated text] 。
+- [translated text] [translated text] [translated text] MCP `tools/list`， [translated text] `workitem get`、`view list`， [translated text] [translated text] [translated text] 。 [translated text] [translated text] [translated text] `metadata.resource` [translated text] `metadata.method`； [translated text] metadata [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] fallback [translated text] 。
+- [translated text] [translated text] [translated text] [translated text] fallback [translated text] [translated text] [translated text] [translated text] ，MCP metadata [translated text] [translated text] [translated text] [translated text] [translated text] `auth status` [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 。
+- [translated text] [translated text] [translated text] [translated text] wire [translated text] 、 [translated text] 、 [translated text] [translated text] 、Flag [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] ； [translated text] [translated text] [translated text] 、 [translated text] [translated text] [translated text] SDK [translated text] [translated text] 。 [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] description [translated text] [translated text] [translated text] [translated text] [translated text] 。
+- `meegle --refresh ...` [translated text] [translated text] [translated text] ，Cobra [translated text] [translated text] [translated text] ； [translated text] [translated text] [translated text] [translated text] Platform [translated text] [translated text] [translated text] [translated text] [translated text] 。
+- SDK [translated text] [translated text] [translated text] MCP tool [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] [translated text] CLI [translated text] [translated text] [translated text] [translated text] 。
 
-## 7. 诊断命令
+## 7. Diagnostic Commands
 
-诊断只输出非敏感元数据，不打印 token：
+ [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] token：
 
 ```bash
 ./corp-meegle extension doctor
@@ -310,9 +310,9 @@ func init() {
 ./corp-meegle extension policy
 ```
 
-公开 SDK 通过 `meegle.NewClient(...)` 创建 `Client`，随后可调用 `client.DiscoveryIssues()` 获取被隔离工具的稳定 `Code`、`ToolName` 和 `Path`；诊断不包含 Token、Header 或服务端返回的自由文本。
+ [translated text] SDK [translated text] `meegle.NewClient(...)` [translated text] `Client`， [translated text] [translated text] [translated text] `client.DiscoveryIssues()` [translated text] [translated text] [translated text] [translated text] [translated text] `Code`、`ToolName` [translated text] `Path`； [translated text] [translated text] [translated text] Token、Header [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] 。
 
-典型输出：
+ [translated text] [translated text] ：
 
 ```text
 credential: corp-sso priority=1
@@ -321,12 +321,12 @@ transport: corp-network status=active hook-timeout=30s tls-downgrade=blocked red
 plugin: corp-governance version=1.0.0 status=active policy=fail-open restricts=false
 ```
 
-## 8. V1 明确不做的事情
+## 8. V1 [translated text] [translated text] [translated text] [translated text]
 
-- 不在运行时下载、安装或热更新 Go 插件。
-- 不新增 Meegle 服务端接口。
-- 不包含插件 token/插件操作身份。
-- 不包含 E2E 上报能力。
-- 不让 SDK 自动加载企业 CLI 扩展。
+- [translated text] [translated text] [translated text] [translated text] 、 [translated text] [translated text] [translated text] Go [translated text] 。
+- [translated text] [translated text] Meegle [translated text] [translated text] [translated text] 。
+- [translated text] [translated text] [translated text] token/ [translated text] [translated text] [translated text] 。
+- [translated text] [translated text] E2E [translated text] [translated text] 。
+- [translated text] SDK [translated text] [translated text] [translated text] CLI [translated text] 。
 
-以后增加插件操作身份时，可以在 Credential 的身份模型中扩展，不需要推翻本 V1 的 CLI 装配、Transport 和 Platform 结构。
+ [translated text] [translated text] [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] Credential [translated text] [translated text] [translated text] [translated text] ， [translated text] [translated text] [translated text] V1 [translated text] CLI [translated text] 、Transport [translated text] Platform [translated text] 。

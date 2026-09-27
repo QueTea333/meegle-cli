@@ -4,7 +4,7 @@
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16-brightgreen.svg)](https://nodejs.org/)
 [![npm version](https://img.shields.io/npm/v/@lark-project/meegle.svg)](https://www.npmjs.com/package/@lark-project/meegle)
 
-[English](./README.md) | [简体中文](./README.zh-CN.md)
+[English](./README.md) | [Simplified Chinese](./README.zh-CN.md)
 
 Command-line tool for [Meegle](https://meegle.com?utm_source=github&utm_medium=readme&utm_campaign=meegle_cli) ([Lark Project](https://project.feishu.cn?utm_source=github&utm_medium=readme&utm_campaign=meegle_cli)). Manage work items, schedules, and data from your terminal — no browser needed.
 

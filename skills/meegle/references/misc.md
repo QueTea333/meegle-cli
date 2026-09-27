@@ -1,186 +1,186 @@
-# 其它低频命令
+#Other low-frequency commands
 
-低频/单命令小域的参数表汇总。涵盖团队、图表、子任务、关系、评论查询、工时记录、交付物、资源库、WBS 辅助命令。
+Summary of parameter tables for low-frequency/single-command small domains. Covers teams, charts, subtasks, relationships, comment queries, time records, deliverables, resource libraries, and WBS auxiliary commands.
 
 ---
 
-## 团队
+## Team
 
 ### team list
-查看空间下的团队列表。
+Check out the team list under Spaces.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 否 | 空间 key |
+| --project-key | string | no | space key |
 
 ### team list-members
-查看团队成员列表。
+View a list of team members.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --team-id | string | 是 | 团队 ID |
+| --project-key | string | yes | space key |
+| --team-id | string | yes | team ID |
 
 ---
 
-## 度量图表
+## Metric chart
 
 ### chart get
-查看图表详情。
+View chart details.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --chart-id | string | 是 | 图表 ID |
+| --chart-id | string | yes | chart ID |
 
 ### chart list
-查看视图下的图表列表。
+View the list of charts under the view.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --view-id | string | 是 | 视图 ID |
+| --project-key | string | yes | space key |
+| --view-id | string | yes | view ID |
 
 ---
 
-## 子任务
+## Subtasks
 
 ### subtask update
-创建/修改/完成/回滚子任务。
+Create/modify/complete/rollback subtasks.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --node-id | string | 是 | 节点 ID |
-| --work-item-id | string | 是 | 工作项 ID |
-| --action | string | 是 | create/update/confirm/rollback |
+| --node-id | string | yes | node ID |
+| --work-item-id | string | yes | work item ID |
+| --action | string | yes | create/update/confirm/rollback |
 
 ---
 
-## 关系
+## relation
 
 ### relation list
-查看关联的工作项列表。
+View a list of associated work items.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --work-item-id | string | 是 | 工作项 ID |
-| --relation-field-key | string | 否 | 关联关系字段 key，从 `relation meta-definitions` 获取 |
-| --relation-id | string | 否 | 关联关系 ID，从 `relation meta-definitions` 获取 |
-| --node-id | string | 否 | 节点 ID，查询某节点下的关联时传入 |
-| --page-num | number | 否 | 分页页码，从 1 开始 |
-| --page-size | number | 否 | 每页数量，最大 50 |
+| --project-key | string | yes | space key |
+| --work-item-id | string | yes | work item ID |
+| --relation-field-key | string | No | Relationship field key, obtained from `relation meta-definitions` |
+| --relation-id | string | No | Relationship ID, obtained from `relation meta-definitions` |
+| --node-id | string | No | Node ID, passed in when querying the association under a node |
+| --page-num | number | No | Paging page number, starting from 1 |
+| --page-size | number | No | Number of pages per page, maximum 50 |
 
 ### relation meta-definitions
-查看空间下的关联关系定义。
+View the relationship definition under the space.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
+| --project-key | string | yes | space key |
 
 ---
 
-## 评论查询
+## Comment query
 
 ### comment list
-查看评论列表。添加评论用 `comment add`（见 SKILL.md 主文件）。
+See the list of comments. Add comments using `comment add` (see the main SKILL.md file).
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --work-item-id | string | 是 | 工作项 ID |
+| --project-key | string | yes | space key |
+| --work-item-id | string | yes | work item ID |
 
 ---
 
-## 工时记录
+## Working hours record
 
 ### workhour list-records
-查看工作项的工时登记记录。团队排期用 `workhour list-schedule`（见 SKILL.md 主文件）。
+View the time registration record of the work item. Team scheduling uses `workhour list-schedule` (see the main SKILL.md file).
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --work-item-type | string | 是 | 工作项类型 |
-| --work-item-id | string | 是 | 工作项 ID |
+| --project-key | string | yes | space key |
+| --work-item-type | string | yes | work item type |
+| --work-item-id | string | yes | work item ID |
 
 ---
 
-## 交付物
+## Deliverables
 
 ### deliverable list
-查看交付物详情及其所属根工作项 / 来源工作项。
+View deliverable details and the root/source work items they belong to.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --work-item-ids | string[] | 否 | 工作项 ID 列表；URL 自动解析；提供名称需先调 `workitem get` 拿 ID |
+| --project-key | string | yes | space key |
+| --work-item-ids | string[] | No | Work item ID list; URL is automatically parsed; to provide a name, you need to call `workitem get` first to get the ID |
 
 ---
 
-## 资源库
+## Resource Library
 
 ### resource create
-在已启用资源库的工作项类型下创建资源模板（资源实例）。先调 `resource meta-fields` 取字段 / 角色配置。
+Create a resource template (resource instance) under a resource pool-enabled work item type. First call `resource meta-fields` to get the field/role configuration.
 
-**创建资源实例 vs 从资源实例创建普通工作项**：
-- 创建资源实例：使用 `resource create`；`work_item_type_key` 表示资源库启用的工作项类型，`template_id` 表示流程模板，`fields` / `roles` 描述新资源实例自身。
-- 从资源实例创建普通工作项：这是“基于已有资源实例派生/创建业务工作项”的语义，参数通常需要源资源实例标识。当前命令参数必须以 `inspect` / schema 为准；若没有显式源资源实例参数，不要把源资源实例 ID 塞进 `work_item_type_key`、`template_id` 或普通字段里猜测调用。
+**Creating a resource instance vs creating a normal work item from a resource instance**:
+- Create a resource instance: use `resource create`; `work_item_type_key` represents the work item type enabled by the resource library, `template_id` represents the process template, `fields` / `roles` describes the new resource instance itself.
+- Create a normal work item from a resource instance: This is the semantics of "derivating/creating a business work item based on an existing resource instance", and the parameters usually require the source resource instance ID. The current command parameters must be based on `inspect` / schema; if there is no explicit source resource instance parameter, do not insert the source resource instance ID into `work_item_type_key`, `template_id` or ordinary fields to guess the call.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --work-item-type-key | string | 是 | 工作项类型 key 或名称；失败时先调 `workitem meta-types` |
-| --fields | object[] | 否 | 资源字段列表，每项含字段 key 与字段值 |
-| --roles | object[] | 否 | 角色人员；为空则不指定 |
-| --template-id | string | 否 | 工作流模板 ID 或名称；未传则取该工作项类型的第一个流程模板 |
+| --project-key | string | yes | space key |
+| --work-item-type-key | string | Yes | Work item type key or name; if failed, call `workitem meta-types` first |
+| --fields | object[] | No | Resource field list, each item contains field key and field value |
+| --roles | object[] | No | Role personnel; if empty, do not specify |
+| --template-id | string | No | Workflow template ID or name; if not passed, the first process template of this work item type will be taken |
 
 ### resource meta-fields
-查看资源库的字段 / 角色配置。
+View the field/role configuration for the repository.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --work-item-type-key | string | 是 | 工作项类型 key 或名称 |
+| --project-key | string | yes | space key |
+| --work-item-type-key | string | yes | work item type key or name |
 
 ---
 
-## WBS 辅助命令
+## WBS auxiliary command
 
-> 计划表（WBS）的核心查询 / 编辑 / 发布命令见 [wbs.md](wbs.md)。本节仅收 4 个辅助命令：草稿生命周期管理（create-draft / reset-draft）、异步操作进度查询（get-draft-progress）、流程资源库元素查询（list-element-templates）。
+> See [wbs.md](wbs.md) for the core query/edit/publish commands of the schedule (WBS). This section only contains 4 auxiliary commands: draft life cycle management (create-draft / reset-draft), asynchronous operation progress query (get-draft-progress), and process resource library element query (list-element-templates).
 
 ### wbs create-draft
-为指定工作项实例创建新的计划表草稿。当需要编辑计划表但当前不存在草稿时，先调本工具创建草稿，再配合 `wbs edit-draft` 进行编辑。
+Creates a new draft schedule for the specified work item instance. When you need to edit the schedule but no draft currently exists, first call this tool to create a draft, and then use `wbs edit-draft` to edit it.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --work-item-id | string | 是 | 工作项 ID，单值；URL 自动解析 |
-| --project-key | string | 是 | 空间 key |
+| --work-item-id | string | Yes | Work item ID, single value; URL automatically parsed |
+| --project-key | string | yes | space key |
 
 ### wbs reset-draft
-将草稿重置为线上实例状态，**放弃所有未发布的修改**。不传 `uuids` 时全量重置。
+Reset the draft to the online instance state, **discarding all unpublished changes**. If `uuids` is not passed, all values ​​will be reset.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --work-item-id | string | 是 | 工作项 ID |
-| --project-key | string | 是 | 空间 key |
-| --uuids | string[] | 否 | 要重置的行 uuid 列表；为空则全量重置 |
+| --work-item-id | string | yes | work item ID |
+| --project-key | string | yes | space key |
+| --uuids | string[] | No | List of row uuid to be reset; if empty, all will be reset |
 
 ### wbs get-draft-progress
-查询计划表草稿异步操作（create / edit / publish / reset）的执行进度。
+Query the execution progress of asynchronous operations (create/edit/publish/reset) on the draft plan table.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --work-item-id | string | 是 | 工作项 ID 或名称 |
-| --op-type | string | 是 | 操作类型：`create` / `edit` / `publish` / `reset` |
-| --operation-id | string | 是 | 操作 ID（由 create-draft / edit-draft / publish-draft / reset-draft 返回） |
+| --project-key | string | yes | space key |
+| --work-item-id | string | yes | work item ID or name |
+| --op-type | string | Yes | Operation type: `create` / `edit` / `publish` / `reset` |
+| --operation-id | string | Yes | Operation ID (returned by create-draft / edit-draft / publish-draft / reset-draft) |
 
 ### wbs list-element-templates
-列出流程资源库中的资源节点（node）或资源任务（task）模板。
+List resource node (node) or resource task (task) templates in the process resource library.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --element-type | string | 是 | 资源库类型：`node` 或 `task` |
-| --project-key | string | 是 | 空间 key |
-| --work-item-type | string | 是 | 工作项类型 key 或名称 |
-| --page-size | number | 否 | 页大小 |
-| --page-no | number | 否 | 页码 |
+| --element-type | string | yes | Repository type: `node` or `task` |
+| --project-key | string | yes | space key |
+| --work-item-type | string | yes | work item type key or name |
+| --page-size | number | no | page size |
+| --page-no | number | no | page number |

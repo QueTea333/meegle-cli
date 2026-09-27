@@ -1,41 +1,41 @@
-# 工作项元数据命令
+# Work item metadata command
 
-查询工作项类型、字段、角色配置的辅助命令。在 `workitem create` / `workitem update` / `workitem query` 之前用来确认合法 key。
+Auxiliary commands for querying work item types, fields, and role configurations. Used to confirm legal keys before `workitem create` / `workitem update` / `workitem query`.
 
 ## workitem meta-types
-获取指定空间下所有工作项类型列表。用户描述模糊时用此命令确认合法 type_key。
+Get a list of all work item types in the specified space. Use this command to confirm the legal type_key when the user description is ambiguous.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 projectKey |
+| --project-key | string | yes | space projectKey |
 
 ## workitem meta-fields
-获取指定空间和工作项类型的可用字段配置（不含禁用字段和角色配置）。
+Gets the available field configurations (excluding disabled fields and role configurations) for the specified space and work item type.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --work-item-type | string | 是 | 工作项类型 key 或名称 |
-| --page-num | number | 是 | 页数，每页 50 条，从 1 开始 |
-| --field-keys | array | 否 | 精确匹配字段 key 或名称 |
-| --field-query | string | 否 | 模糊查询字段 key 和名称 |
-| --field-types | array | 否 | 按字段类型筛选 |
+| --project-key | string | yes | space key |
+| --work-item-type | string | yes | work item type key or name |
+| --page-num | number | Yes | Number of pages, 50 items per page, starting from 1 |
+| --field-keys | array | No | Exactly match field key or name |
+| --field-query | string | No | Fuzzy query field key and name |
+| --field-types | array | No | Filter by field type |
 
 ## workitem meta-roles
-获取指定工作项类型的角色列表。用于查询/创建/更新工作项前确认合法 role_key。
+Gets the list of roles for the specified work item type. Used to confirm the legal role_key before querying/creating/updating work items.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --work-item-type | string | 是 | 工作项类型 key 或名称 |
-| --page-num | number | 是 | 页数，每页 50 条，从 1 开始 |
-| --role-keys | array | 否 | 精确匹配角色 key 或名称 |
-| --role-query | string | 否 | 模糊查询角色 key 和名称 |
+| --project-key | string | yes | space key |
+| --work-item-type | string | yes | work item type key or name |
+| --page-num | number | Yes | Number of pages, 50 items per page, starting from 1 |
+| --role-keys | array | No | Exactly match role key or name |
+| --role-query | string | No | Fuzzy query role key and name |
 
 ## workitem meta-create-fields
-查看创建工作项时可用的字段及类型。
+View the fields and types available when creating work items.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --work-item-type | string | 是 | 要创建的工作项类型 key |
+| --project-key | string | yes | space key |
+| --work-item-type | string | Yes | The type of work item to create key |

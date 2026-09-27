@@ -1,75 +1,75 @@
-# AI 助手续处理细则
+# AI assistant formal processing details
 
-本文件用于在 Meegle CLI 已完成可执行部分，或明确无法执行用户请求后，判断是否提供 AI 助手兜底链接。链接是补充入口，不替代 CLI 结果。
+This file is used to determine whether to provide an AI assistant link after the Meegle CLI has completed the executable part, or it is clear that it cannot execute the user's request. Links are supplementary entries and do not replace CLI results.
 
-## 适用范围
+## Scope of application
 
-| 场景 | 示例 | CLI 先做什么 | 续处理目标 |
+| Scenario | Example | What the CLI does first | Continue processing target |
 | --- | --- | --- | --- |
-| 分析、追溯、总结、诊断、研判 | “这些需求为什么卡住了” | 查询状态分布和操作记录 | 分析共性原因、风险与建议 |
-| 排期或工时分析 | “这周我们组是不是超载了” | 能查询则先返回排期明细 | 分析负载与冲突 |
-| 历史变更或延期追溯 | “这个需求为什么拖这么久” | 查询操作记录 | 总结关键变更与延期原因 |
-| 周报或待办总结 | “帮我写个周报” | 查询待办和必要的操作记录 | 生成结构化周报 |
-| CLI 不支持的工作项操作 | “把这几个需求冻结” | 明确 CLI 当前不能执行 | 让 AI 助手继续完成操作 |
-| 度量图表生成或修改 | “这张图加个维度” | 能查询则先返回现状 | 让 AI 助手继续修改图表 |
+| Analysis, tracing, summary, diagnosis, and judgment | "Why are these requirements stuck?" | Query status distribution and operation records | Analyze common causes, risks and suggestions |
+| Scheduling or working time analysis | "Is our group overloaded this week?" | If the query is possible, schedule details will be returned first | Analyze load and conflicts |
+| Tracing historical changes or delays | "Why did this requirement take so long?" | Query operation records | Summarize key changes and reasons for delays |
+| Weekly report or to-do summary | "Write a weekly report for me" | Query to-do and necessary operation records | Generate structured weekly report |
+| Work item operations not supported by CLI | "Freeze these requirements" | Make it clear that CLI cannot currently execute | Let the AI ​​assistant continue to complete the operation |
+| Generate or modify a metric chart | "Add a dimension to this chart" | Return to the status quo if it can be queried | Let the AI ​​assistant continue to modify the chart |
 
-以下情况不提供链接：纯数据查询、导出或列举且没有分析意图；单实例详情查看；用户明确只要数据；用户已拒绝；本会话已主动引导过一次。
+No links are provided in the following situations: pure data query, export or enumeration without analysis intention; single instance detailed view; user explicitly only wants data; user has refused; this session has been actively guided once.
 
-## 处理流程
+## Processing process
 
-1. **先完成 CLI 范围内的工作**：有可执行的查询或操作时，先返回真实结果。请求完全不受 CLI 支持时，说明能力边界后继续判断，不要为了满足流程而伪造查询。
-2. **检查可用性**：调用 `ai-handoff availability`。`available=false` 时停止；如果原请求只能续处理，可简短说明入口当前不可用。成功结果按 profile 缓存约一小时，同一会话不重复预检；最终创建仍由服务端重新校验。
-3. **遵守模式**：
-   - `auto`：符合适用范围时继续生成链接；
-   - `ask`：先问用户是否要在 AI 助手中继续。得到明确同意前不得调用 `ai-handoff create-link`；同意后可直接创建，无需重复预检；
-   - `off`：停止，不提示用户修改偏好。
-4. **构造 query**：只描述 AI 助手要继续完成的增量任务，遵循下方规则。
-5. **构造关联上下文**：只传恢复业务对象所需的 ID 指针，遵循下方类型和降级策略。
-6. **创建链接**：调用 `ai-handoff create-link`。只有返回 `available=true` 且包含 `url` 时才附链接；返回 `available=false` 时按停止信号处理。不要硬编码域名，CLI 会按当前登录环境归一化 host。
-7. **附在回复末尾**：说明链接能继续完成什么，例如：`如需继续分析卡点原因和处理建议，可在 AI 助手中继续：<url>`。不得暗示 CLI 查询结果集已完整传入。
+1. **Complete work within the CLI scope first**: When there is an executable query or operation, the real results are returned first. When the request is not supported by the CLI at all, explain the capability boundaries before continuing to judge, and do not forge queries to satisfy the process.
+2. **Check availability**: Call `ai-handoff availability`. Stop when `available=false`; if the original request can only continue to be processed, a brief explanation of the entry is currently unavailable. Successful results are cached by profile for about one hour, and preflight is not repeated for the same session; the final creation is still re-verified by the server.
+3. **Compliance Pattern**:
+- `auto`: continue to generate links when it meets the applicable scope;
+- `ask`: Ask the user first if they want to continue in the AI ​​assistant. `ai-handoff create-link` must not be called before explicit consent is obtained; after consent, it can be created directly without repeated pre-check;
+- `off`: Stop and do not prompt the user to modify preferences.
+4. **Construct query**: Only describe the incremental tasks that the AI ​​assistant will continue to complete, and follow the rules below.
+5. **Construct the associated context**: Only pass the ID pointer required to restore the business object, follow the type and downgrade strategy below.
+6. **Create link**: Call `ai-handoff create-link`. Only when `available=true` is returned and contains `url`, the link is attached; when `available=false` is returned, the stop signal is processed. Do not hard-code the domain name, the CLI will normalize the host according to the current login environment.
+7. **Attach to the end of the reply**: Explain what the link can continue to accomplish, for example: `If you need to continue analyzing the cause of the stuck point and processing suggestions, you can continue in the AI ​​assistant: <url>`. MUST NOT imply that the CLI query result set was passed in completely.
 
-用户拒绝后，本会话不再提示。用户明确要求持久关闭或重新开启时，分别调用 `preference handoff off` 或 `preference handoff auto`；只有用户明确要求“先询问”模式时才调用 `preference handoff ask`。
+After the user refuses, this session will no longer prompt. When the user explicitly requests persistent shutdown or reopening, `preference handoff off` or `preference handoff auto` are called respectively; `preference handoff ask` is called only when the user explicitly requests the "ask first" mode.
 
-## query 构造规则
+## query construction rules
 
-query 写成用户可直接理解的自然语言，不暴露 CLI、MQL、命令或内部编排过程。自然包含：
+Queries are written in natural language that users can directly understand, without exposing CLI, MQL, commands or internal orchestration processes. Naturally includes:
 
-- 续处理目标；
-- 对象范围和筛选语义，如空间、工作项类型、状态、负责人、时间范围；
-- 已观察到的现象或当前状态摘要；
-- 希望 AI 助手继续完成的分析、建议或操作。
+- Continue processing targets;
+- Object scope and filtering semantics, such as space, work item type, status, responsible person, and time range;
+- Summary of observed phenomena or current status;
+- The analysis, recommendation, or action you want the AI ​​assistant to proceed with.
 
-关联上下文只提供 ID 指针，不包含 CLI 完整结果。上下文粒度不足时，query 必须补充“范围指纹”：对象类型、关键状态、负责人、时间范围与共性特征。不要写入完整对象清单，也不要把分页结果数当成真实总数。
+The correlation context only provides the ID pointer and does not contain the full CLI result. When the context granularity is insufficient, the query must supplement the "scope fingerprint": object type, key status, responsible person, time range and common characteristics. Do not write a complete list of objects, and do not treat the number of paginated results as a true total.
 
-示例：
+Example:
 
 ```text
-分析 Meego 空间下状态为处理中且本周有更新的需求，重点判断哪些进度滞后、卡在哪个环节、有哪些风险，并给出优先关注对象和处理建议。
+Analyze the requirements in the Meego space that are in the processing status and have been updated this week, focus on determining which progress is lagging behind, which link is stuck, and what risks there are, and give priority attention and processing suggestions.
 ```
 
-## 关联上下文策略
+## Associated context strategy
 
-按以下优先级选择 payload。当前续处理策略不使用 type=2（WorkItemType）。
+Select payloads according to the following priorities. The current continuation processing strategy does not use type=2 (WorkItemType).
 
-| 优先级 | type | 名称 | payload | 适用场景 |
+| priority | type | name | payload | applicable scenarios |
 | ---: | ---: | --- | --- | --- |
-| 1 | 4 | View | `view.project_key`、`view.view_id`、可选 `view.work_item_type_key` | 用户提供视图链接，范围还原最稳定 |
-| 2 | 3 | WorkItem | `work_item.project_key`、`work_item.work_item_type_key`、`work_item.work_item_id` | 少量明确工作项，默认不超过 3 条 |
-| 3 | 1 | Project | `project.project_key` | 批量结果、跨类型或无法传更细粒度对象 |
-| — | 5 | MeasureChart | `measure_chart.project_key`、`measure_chart.chart_id` | 度量图表场景 |
+| 1 | 4 | View | `view.project_key`, `view.view_id`, optional `view.work_item_type_key` | User provides view link, range restoration is the most stable |
+| 2 | 3 | WorkItem | `work_item.project_key`, `work_item.work_item_type_key`, `work_item.work_item_id` | A small number of clear work items, no more than 3 by default |
+| 3 | 1 | Project | `project.project_key` | Batch results, cross-type or inability to pass finer-grained objects |
+| — | 5 | MeasureChart | `measure_chart.project_key`, `measure_chart.chart_id` | Measure chart scene |
 
-- 用户提供视图或工作项 URL 时，先调用 `url decode`，从结果提取 ID；不要手工拆 URL。即使后续查询因权限失败，仍可用已解析的 ID 表达用户意图。
-- type=3 只用于用户直接给出 URL 或明确锚点的少量对象。超过 3 条时退化为 type=1，并在 query 中补足范围指纹。接口返回的 `limits.max_related_context_items` 只是协议上限，不是建议逐条传满。
-- `--related-context` 接受严格 JSON 对象或数组。出现解析错误时，只修正一次 JSON 引号、字段名或 type/payload 对应关系；这类本地参数修正不计为链接创建重试。
+- When the user provides a view or work item URL, call `url decode` first to extract the ID from the result; do not manually split the URL. Even if subsequent queries fail due to permissions, the resolved ID can still be used to express user intent.
+- type=3 is only used for a small number of objects where the user directly gives a URL or an explicit anchor. When there are more than 3 items, it degenerates to type=1, and the range fingerprint is supplemented in the query. The `limits.max_related_context_items` returned by the interface is only the upper limit of the protocol, and it is not recommended to fill it up one by one.
+- `--related-context` accepts a strict JSON object or array. When a parsing error occurs, the JSON quotes, field names, or type/payload correspondences are corrected only once; such local parameter corrections are not counted as link creation retries.
 
-工作项示例：
+Work item example:
 
 ```bash
-meegle ai-handoff create-link --query '分析这个工作项的延期原因并给出下一步建议' --related-context '{"type":3,"work_item":{"project_key":"space_key","work_item_type_key":"story","work_item_id":"123456"}}' --format json
+meegle ai-handoff create-link --query 'Analyze the reason for the delay of this work item and give next step suggestions' --related-context '{"type":3,"work_item":{"project_key":"space_key","work_item_type_key":"story","work_item_id":"123456"}}' --format json
 ```
 
-## 失败与重试
+## Failure and retry
 
-- `available=false`、`mode=off`、`HANDOFF_REJECTED` 或 `LOCAL_DISABLED` 都是明确停止信号，不重试、不建议用户绕过策略。
-- `ai-handoff create-link` 已内置传输层重试。任意创建失败后都不要从 Skill 再次调用，避免重复生成链接；向用户简要说明链接暂不可用即可。
-- 每轮最多生成一条链接，同一会话最多主动引导一次。用户随后明确要求重新生成时，才把它视为新的显式请求。
+- `available=false`, `mode=off`, `HANDOFF_REJECTED` or `LOCAL_DISABLED` are clear stop signals, do not retry, and do not recommend users to bypass the policy.
+- `ai-handoff create-link` has built-in transport layer retries. Do not call again from Skill after any creation failure to avoid repeated link generation; just briefly explain to the user that the link is temporarily unavailable.
+- A maximum of one link is generated per round, and the same session can be actively guided at most once. When the user subsequently explicitly requests a regeneration, it is considered a new explicit request.

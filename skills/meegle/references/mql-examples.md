@@ -1,8 +1,8 @@
-# MQL 完整示例与关键词映射
+# MQL complete example and keyword mapping
 
-示例中的字段 key、角色、options 均以 `workitem meta-fields` / `workitem meta-roles` 返回为准（两者都同时传 `--project-key` 与 `--work-item-type`）。
+The field keys, roles, and options in the example are all returned by `workitem meta-fields` / `workitem meta-roles` (pass both `--project-key` and `--work-item-type` at the same time).
 
-## 1. 数组包含 + 当前用户 + 未归档
+## 1. Array contains + current user + unarchived
 
 ```sql
 SELECT `work_item_id`, `name`, `work_item_status`, `priority`
@@ -10,89 +10,89 @@ FROM `project_key`.`story`
 WHERE array_contains(`current_status_operator`, current_login_user()) AND `archiving_date` IS NULL
 ```
 
-## 2. 相对时间；逾期未完成（日期区间字段 + 状态过滤）
+## 2. Relative time; overdue but not completed (date range field + status filtering)
 
 ```sql
 SELECT `work_item_id`, `name`, `start_time` FROM `project_key`.`story`
 WHERE RELATIVE_DATETIME_BETWEEN(`start_time`, 'past', '30d')
--- 逾期未完成
+-- Overdue and not completed
 SELECT `work_item_id`, `name`, `work_item_status` FROM `project_key`.`story`
-WHERE RELATIVE_DATETIME_LT(`__field_xxxxxx_结束时间`, 'today') AND `work_item_status` != '<完成态label>'
+WHERE RELATIVE_DATETIME_LT(`__field_xxxxxx_end time`, 'today') AND `work_item_status` != '<Complete status label>'
 ```
 
-## 3. 团队角色（`team list` 前置）
+## 3. Team role (`team list` prefixed)
 
-`'真实团队名'` 是占位，必须先 `team list --project-key` 拉取真实团队名，否则报 `attribute_value not found`。
+`'Real team name'` is a placeholder, you must first use `team list --project-key` to get the real team name, otherwise `attribute_value not found` will be reported.
 
 ```sql
 SELECT `work_item_id`, `name`, `priority` FROM `project_key`.`story`
-WHERE any_match(`__后端开发`, x -> x IN (team(true, '真实团队名')))
--- fallback（仅角色名冲突时）
-WHERE any_match(`__role_<project_key>_story_<role_id>`, x -> x IN (team(true, '真实团队名')))
+WHERE any_match(`__Backend Development`, x -> x IN (team(true, 'real team name')))
+-- fallback (only when character names conflict)
+WHERE any_match(`__role_<project_key>_story_<role_id>`, x -> x IN (team(true, 'real team name')))
 ```
 
-## 4. 综合（模糊 + 数组 + 排序截断；要全量走 `--session-id` 翻页）
+## 4. Comprehensive (fuzzy + array + sorting and truncation; use `--session-id` to turn pages in full)
 
 ```sql
 SELECT `work_item_id`, `name`, `work_item_status`, `priority` FROM `project_key`.`issue`
-WHERE `name` LIKE '%性能优化%' AND array_contains(`current_status_operator`, current_login_user()) AND `priority` = 'P0'
+WHERE `name` LIKE '%Performance Optimization%' AND array_contains(`current_status_operator`, current_login_user()) AND `priority` = 'P0'
 ORDER BY `updated_at` DESC LIMIT 50
 ```
 
-## 5. 节点属性 + 延期标识
+## 5. Node attributes + extension identifier
 
 ```sql
--- 所属节点当前负责人（单条件；`__BELONGING` 属性禁 AND 组合，见 mql-nodes-relations.md §4）
+-- The current person in charge of the node to which it belongs (single condition; `__BELONGING` attribute prohibits AND combination, see mql-nodes-relations.md §4)
 SELECT `work_item_id`, `name`, `work_item_status` FROM `project_key`.`story`
-WHERE array_contains(get_node_attribute('__BELONGING','当前负责人'), '<id:userkey>')
--- 所属节点状态：必须 = 顶层比较，禁止 array_contains 包裹
+WHERE array_contains(get_node_attribute('__BELONGING','Current person in charge'), '<id:userkey>')
+--Owning node status: must = top-level comparison, array_contains package is prohibited
 SELECT `work_item_id`, `name` FROM `project_key`.`story`
-WHERE get_node_attribute('__BELONGING','状态') = '<进行中状态label>'
--- 开始节点已延期（集合完全相等，JSON 数组字符串例外）
-SELECT `work_item_id`, `name` FROM `project_key`.`story` WHERE risk_label() = '["延期/开始"]'
+WHERE get_node_attribute('__BELONGING','status') = '<in progress status label>'
+-- The start node has been extended (collections are exactly equal, except for JSON array strings)
+SELECT `work_item_id`, `name` FROM `project_key`.`story` WHERE risk_label() = '["Delay/Start"]'
 ```
 
-## 6. 关系查询（链式 + 跨空间字段）
+## 6. Relational query (chain + cross-spatial field)
 
 ```sql
--- 子任务的父工作项名称包含「登录」
+-- The subtask's parent work item name contains "Login"
 SELECT `work_item_id`, `name` FROM `project_key`.`sub_task`
-WHERE any_relation_match(relation_field_chain('__父工作项'), x -> x.`name<target:all>` like '%登录%')
--- 多级关系：子任务 → 父工作项 → 关联软件
+WHERE any_relation_match(relation_field_chain('__parent work item'), x -> x.`name<target:all>` like '%login%')
+-- Multi-level relationship: subtask → parent work item → associated software
 SELECT `work_item_id`, `name` FROM `project_key`.`sub_task`
-WHERE any_relation_match(relation_field_chain('__父工作项','需求关联软件'), x -> x.`name<target:all>` = '某软件')
+WHERE any_relation_match(relation_field_chain('__parent work item','requirement related software'), x -> x.`name<target:all>` = 'some software')
 ```
 
-## 7. 状态时间 + 节点负责人
+## 7. Status time + node leader
 
 ```sql
--- issue（状态流）：状态窗口
+-- issue (status flow): status window
 SELECT `work_item_id`, `name`, `work_item_status` FROM `project_key`.`issue`
-WHERE status_time('<状态名>') between '2025-01-01' and '2025-12-31'
--- story（节点流）：开始节点负责人
+WHERE status_time('<status name>') between '2025-01-01' and '2025-12-31'
+-- story (node ​​flow): start node leader
 SELECT `work_item_id`, `name` FROM `project_key`.`story`
-WHERE array_contains(get_node_attribute('开始','负责人'), '<id:userkey>')
+WHERE array_contains(get_node_attribute('start','person in charge'), '<id:userkey>')
 ```
 
-## 8. 关键词 → 语法映射
+## 8. Keyword → Grammar mapping
 
-| 用户关键词 | 语法 |
+| User keywords | Grammar |
 |-----------|------|
-| 参与人员、全部参与人员 | `all_participate_persons()` |
-| 当前参与人 | `participate_persons()` |
-| 流程节点、所有节点 | `all_nodes_name()` |
-| 进行中节点 | `in_progress_nodes_name()` |
-| 节点排期、节点估分、所属节点 | `get_node_attribute(node, attr)`（所属节点用 `__BELONGING`） |
-| 节点延期标识 | `risk_label()` |
-| 关联工作项字段 | `relation_field_chain('rel1',...)`（≤ 3 跳） |
-| 子任务父工作项 | `relation_field_chain('__父工作项')` |
-| 子任务来源 | `linked_work_item()` |
-| 状态时间窗口（状态流） | `status_time('状态名') between ...` |
-| 状态累计时长（状态流） | `status_time('__<状态名>_结束时间') - status_time('__<状态名>_开始时间')`（仅 SELECT） |
-| 关系语境「每一个」/「存在一个」/「每一个不满足」/「存在一个不满足」 | `all_relation_match` / `any_relation_match` / `none_relation_match` / `not all_relation_match` |
-| 数组语义 | 语法 |
+| Participants, all participants | `all_participate_persons()` |
+| Current participants | `participate_persons()` |
+| Process nodes, all nodes | `all_nodes_name()` |
+| Nodes in progress | `in_progress_nodes_name()` |
+| Node scheduling, node evaluation, and belonging nodes | `get_node_attribute(node, attr)` (use `__BELONGING` for the belonging node) |
+| Node deferred label | `risk_label()` |
+| Relation work item fields | `relation_field_chain('rel1',...)` (≤ 3 hops) |
+| Subtask parent work item | `relation_field_chain('__parent work item')` |
+| Subtask source | `linked_work_item()` |
+| Status time window (status flow) | `status_time('status name') between ...` |
+| Status cumulative duration (status flow) | `status_time('__<status name>_end time') - status_time('__<status name>_start time')` (SELECT only) |
+| Relational context "every"/"there is one"/"every dissatisfaction"/"there is one dissatisfaction" | `all_relation_match` / `any_relation_match` / `none_relation_match` / `not all_relation_match` |
+| Array semantics | Syntax |
 |------|------|
-| 存在选项属于（OR） | `IN + 元组`（首选）；控件函数用 `any_match` |
-| 全部选项均不属于 | `NOT IN`（首选）；`none_match` 备选 |
-| 同时包含（AND） | `array_contains(field, 'a', 'b')` |
-| 集合完全相等 | `` `field` = ('v1','v2') ``（禁 JSON 数组字符串，控件函数除外） |
+| Existing options belong to (OR) | `IN + tuple` (preferred); use `any_match` for control functions |
+| None of the options | `NOT IN` (preferred); `none_match` alternative |
+| Contains both (AND) | `array_contains(field, 'a', 'b')` |
+| Sets are exactly equal | `` `field` = ('v1','v2') `` (JSON array strings are prohibited, except for control functions) |

@@ -1,147 +1,147 @@
-# 流转工作项状态（状态流）
+# Transfer work item status (status flow)
 
-> **CRITICAL** — 开始前 MUST 先用 Read 工具读取 `../SKILL.md`，其中包含前置检查、授权流程、命令参数参考、字段值格式、通用规范和错误处理。
+> **CRITICAL** — Before starting, MUST use the Read tool to read `../SKILL.md`, which contains pre-checking, authorization process, command parameter reference, field value format, general specifications and error handling.
 
-本 Skill 用于**状态流工作项**（如缺陷 / issue）的状态流转，全程自动化编排。
+This skill is used for the status flow of **status flow work items** (such as defects/issues), and the entire process is automatically orchestrated.
 
-> ⚠️ **仅限状态流**。需求 / story 等节点流工作项须改用 `workflow transition`（action=confirm/rollback），不要混用本 Skill。
+> ⚠️ **State flow only**. Node flow work items such as requirements/story must use `workflow transition` (action=confirm/rollback) instead. Do not mix this Skill.
 
 ---
 
-## 执行流程
+## Execution process
 
-### STEP 1 — 定位工作项 + 获取当前用户（并行）
+### STEP 1 — Locate work item + get current user (parallel)
 
-**并行执行**：
+**Parallel execution**:
 
-1. **定位工作项**：从用户输入中提取 `work_item_id`、`project_key`、`work_item_type`。
-   - **URL 解析**：用户给了链接则先调 `url decode`。只有 `url_kind == workitem_detail` 才能进入本 SOP；其他 kind 按 [url-kinds.md](url-kinds.md) 拒绝或追问。decode 返回的 `simple_name` 必须再调 `project search` 转为权威 `project_key`（同名空间可能有多个无权限）。**禁止**自己从 URL 截取路径段作参数。
-   - **ID 类型**：传给任何工具的 `work_item_id` 必须是 **字符串（String）**。
-   - 信息不足才追问。
-2. **获取当前用户**：调用 `user me`，从返回体取 `user_key`（下一步必填）。`current_login_user()` 仅为 MQL 内置函数字面量，`user search` 不会解析该字符串。
+1. **Locate work items**: Extract `work_item_id`, `project_key`, `work_item_type` from user input.
+- **URL parsing**: When the user provides a link, `url decode` will be called first. Only `url_kind == workitem_detail` can enter this SOP; for other kinds, please press [url-kinds.md](url-kinds.md) to refuse or ask. The `simple_name` returned by decode must be converted into the authoritative `project_key` by `project search` (there may be multiple spaces with the same name without permission). **It is forbidden** to intercept the path segment from the URL as a parameter.
+- **ID type**: `work_item_id` passed to any tool must be **String**.
+- Ask questions only if there is insufficient information.
+2. **Get the current user**: Call `user me` and get `user_key` from the return body (required in the next step). `current_login_user()` is only an MQL built-in function literal, `user search` will not parse this string.
 
-### STEP 2 — 查询可流转状态并匹配目标
-
-```bash
-meegle workflow list-state-transitions --work-item-id 工作项ID --work-item-type 类型key --user-key 当前用户userkey --project-key 空间key --format json
-```
-
-- **匹配目标状态**：精确 / 模糊 / 语义匹配用户意图（如"关闭" → "已关闭"，"解决" → "已解决"）拿到对应的 `transition_id`。
-- 🚨 **未明确目标状态且有多个候选时**：**必须展示所有可选项让用户选择**，不得替用户默认选择。
-
-### STEP 3 — Fail-fast 直接尝试流转
-
-**不要前置查询必填项**，直接调用 `workflow transition-state`：
+### STEP 2 — Query the transferable status and match the target
 
 ```bash
-meegle workflow transition-state --work-item-id 工作项ID --project-key 空间key --transition-id 上一步拿到的ID --format json
+meegle workflow list-state-transitions --work-item-id work item ID --work-item-type type key --user-key current user userkey --project-key space key --format json
 ```
 
-- **流转成功** → 跳到 STEP 6 返回结果。
-- **失败且提示必填字段未填** → 进入 STEP 4 按需补充。
-- **失败其他报错** → 参考下方「智能修复」章节。
+- **Match target status**: Precise/fuzzy/semantic matching of user intent (such as "closed" → "closed", "resolved" → "resolved") to get the corresponding `transition_id`.
+- 🚨 **When the target state is not clear and there are multiple candidates**: **All options must be displayed for the user to choose** and must not be selected by default for the user.
 
-### STEP 4 — 按需收集并补充必填字段（仅流转失败时触发）
+### STEP 3 — Fail-fast try to transfer directly
 
-调用 `workflow list-state-required` 获取目标状态所需必填项：
+**Do not prefix required fields in the query**, call `workflow transition-state` directly:
 
 ```bash
-meegle workflow list-state-required --work-item-id 工作项ID --state-key 目标状态key --project-key 空间key --mode {{mode}} --format json
+meegle workflow transition-state --work-item-id work item ID --project-key space key --transition-id ID obtained in the previous step --format json
 ```
 
-> 若工具支持 `mode` 参数（如 `mode="unfinished"`），优先只查尚未填写的字段，减少噪音。
+- **Transfer successful** → Jump to STEP 6 to return the result.
+- **Failed and prompted that required fields are not filled in** → Enter STEP 4 to supplement as needed.
+- **Other errors on failure** → Please refer to the "Smart Repair" chapter below.
 
-**4.1 硬拦截：不支持 API 更新的字段类型**
+### STEP 4 — Collect and supplement required fields on demand (triggered only when transfer fails)
 
-遇到以下字段被设为必填，**立即中断流转**并提示用户在页面手动填写：
-
-- `vote-boolean` / `vote-option` / `vote-option-multi`（投票类）
-- 计算字段（系统自动计算，只读）
-
-> **复合明细表可先通过 `workitem update` 补充**，但 `compound_field` 与 `multi_user_compound_field` 的写协议不同；多人复合字段还是整体覆盖，必须先读取并保留全部人员和非目标数据。格式详见主文档 [SKILL.md](../SKILL.md)「字段值格式 → 复合明细表」章节；无法自动判断子字段值或人员范围时仍需询问用户。
-
-> 中断话术示例：「流转失败。当前状态需要填写【字段名】，该字段不支持自动化补充，请在页面手动填写后通知我继续。」
-
-**4.2 枚举选项的前置查询（批量 + 精准）**
-
-缺失项包含枚举类（select/radio/multi-select/tree-select 等）时：
-
-- 将所有目标 `field_key` 数组**一次性**传入 `workitem meta-fields` 的 `field_keys` 精准查询，拿到 `option_name` 与 `option_id`。**绝不逐页遍历全量配置。**
-- 将所有必填项及可选值**汇总为一条消息**向用户展示并询问。
+Call `workflow list-state-required` to obtain the required fields for the target state:
 
 ```bash
-meegle workitem meta-fields --page-num 1 --project-key 空间key --work-item-type 类型key --field-types '{{field_types}}' --field-keys '["key1","key2"]' --field-query '{{field_query}}' --format json
+meegle workflow list-state-required --work-item-id work item ID --state-key target state key --project-key space key --mode {{mode}} --format json
 ```
 
-**4.3 字段 Mock 与询问边界（安全底线）**
+> If the tool supports the `mode` parameter (such as `mode="unfinished"`), it will first check only the fields that have not been filled in to reduce noise.
 
-- **业务决策类、人员、日期、枚举类字段** → **禁止 AI 编造或 mock 数据**。必须列出并询问用户。
-- **人员字段（user/multi-user）** → 搜出多个同名或用户未指定时必须确认，**不可默认填当前操作者**（除非用户明确说"分配给我"/"我来处理"）。
-- **打回/关闭原因等纯说明性文本**（如 "Reopen 原因"、"流转说明"）在用户未提供且字段语义不关键时，可默认填 `"重新打开处理"` 或 `"发起流转"`。
+**4.1 Hard interception: Field types updated by API are not supported**
 
-**4.4 字段值格式**
+When the following fields are set as required, **immediately interrupt the flow** and prompt the user to fill them in manually on the page:
 
-拿到用户确认值后，按主文档 [SKILL.md](../SKILL.md)「字段值格式」章节转换为 `field_value`。
+- `vote-boolean` / `vote-option` / `vote-option-multi` (voting class)
+- Calculated fields (automatically calculated by the system, read-only)
 
-> 🚨 **关键约定**：`field_value` 协议层是 **STRING**。标量直接传字符串；数组/对象**必须 JSON.stringify**，否则报 `need STRING type, but got: LIST`。
+> **The compound detail table can be supplemented through `workitem update` first**, but the writing protocols of `compound_field` and `multi_user_compound_field` are different; multi-person compound fields are still covered as a whole, and all personnel and non-target data must be read and retained first. For details on the format, please refer to the main document [SKILL.md](../SKILL.md) "Field Value Format → Composite Detailed List" chapter; when the subfield value or personnel range cannot be automatically determined, the user still needs to be asked.
 
-| 字段类型 | 状态流转场景差异化提示 |
+> Example of interruption technique: "Transfer failed. The current status requires filling in [Field Name]. This field does not support automatic supplementation. Please fill it in manually on the page and notify me to continue."
+
+**4.2 Pre-query for enumeration options (batch + precision)**
+
+When the missing item contains an enumeration class (select/radio/multi-select/tree-select, etc.):
+
+- Pass all target `field_key` arrays **at once** into `field_keys` of `workitem meta-fields` for precise query, and get `option_name` and `option_id`. **Never traverse the entire configuration page by page. **
+- Summarize all required fields and optional values ​​** into one message ** to display and ask the user.
+
+```bash
+meegle workitem meta-fields --page-num 1 --project-key space key --work-item-type type key --field-types '{{field_types}}' --field-keys '["key1","key2"]' --field-query '{{field_query}}' --format json
+```
+
+**4.3 Field Mock and query boundary (safety bottom line)**
+
+- **Business decision-making, personnel, date, and enumeration fields** → **AI is prohibited from fabricating or mocking data**. Must be listed and asked to the user.
+- **Personnel field (user/multi-user)** → When multiple names with the same name are found or the user is not specified, confirmation must be made. **Do not fill in the current operator by default** (unless the user explicitly says "assign to me"/"I will handle it").
+- **Purely descriptive text such as the reason for callback/closing** (such as "Reopen reason", "Transfer description") can be filled in by default with `"Reopen processing"` or `"Initiate transfer"` when the user does not provide it and the field semantics are not critical.
+
+**4.4 Field value format**
+
+After getting the user confirmation value, convert it to `field_value` according to the "Field Value Format" chapter of the main document [SKILL.md](../SKILL.md).
+
+> 🚨 **Key Convention**: `field_value` protocol layer is **STRING**. The scalar is passed directly to the string; the array/object must be JSON.stringify**, otherwise it will report `need STRING type, but got: LIST`.
+
+| Field type | Differentiated prompts for status transfer scenarios |
 |---------|-----------------|
-| `select` / `radio` / `tree-select` | **纯字符串 `option_id`**（🚨 不要传 value/label 的 JSON） |
-| `multi-select` | **stringified** `"[{\"option_id\":\"xxx\"}]"`；若字段配置允许新增选项且用户明确提出新值，可生成 8 位随机小写加下划线格式的 option_id 填入 |
-| `tree-multi-select` | **stringified 字符串一维数组** `"[\"id1\",\"id2\"]"`（🚨 不可对象数组） |
-| `signal` | option_id 字符串（以 `workitem meta-fields` 的 `options[].option_id` 为准；不接受 `"true"`/`"false"`/`"null"`） |
-| `multi-file` | 按 [attachment.md](attachment.md) 执行完整协议：实时消歧目标字段、完成对象存储上传、写入字段并回读同一字段验收；多个附件逐个追加 |
-| `file` | 按 [attachment.md](attachment.md) 的兼容性规则处理，不得假设它与 `multi-file` 具有相同的多附件能力 |
+| `select` / `radio` / `tree-select` | **Pure string `option_id`** (🚨 Do not pass value/label JSON) |
+| `multi-select` | **stringified** `"[{\"option_id\":\"xxx\"}]"`; If the field configuration allows new options and the user explicitly proposes a new value, an 8-digit random lowercase and underlined option_id can be generated to fill in |
+| `tree-multi-select` | **stringified string one-dimensional array** `"[\"id1\",\"id2\"]"` (🚨 non-objectable array) |
+| `signal` | option_id string (based on `options[].option_id` of `workitem meta-fields`; `"true"`/`"false"`/`"null"` is not accepted) |
+| `multi-file` | Press [attachment.md](attachment.md) to execute the complete protocol: real-time disambiguation of target fields, completion of object storage upload, writing of fields and reading back the same field for acceptance; multiple attachments are appended one by one |
+| `file` | is treated according to the compatibility rules of [attachment.md](attachment.md) and must not be assumed to have the same multi-attachment capabilities as `multi-file` |
 
-> 其余通用字段类型（text / number / bool / user / multi-user / date / schedule / precise_date / multi-text / workitem_related_select 等）写入格式详见主文档 [SKILL.md](../SKILL.md)「字段值格式」章节。
+> For details on the writing format of other common field types (text / number / bool / user / multi-user / date / schedule / precise_date / multi-text / workitem_related_select, etc.), please refer to the "Field Value Format" chapter of the main document [SKILL.md](../SKILL.md).
 
-> **用户提供的是工作项名称而非 ID** 时，按主文档 [SKILL.md](../SKILL.md)「关联工作项名称 → ID 转换」完整流程（获取目标约束 → `workitem query` 搜索 → 消歧 → 按类型写入）处理。
+> **When the user provides a work item name instead of an ID**, it is processed according to the complete process of "Associated work item name → ID conversion" in the main document [SKILL.md](../SKILL.md) (get target constraints → `workitem query` search → disambiguation → write by type).
 
-### STEP 5 — 补完字段后再次流转
+### STEP 5 — Complete the fields and circulate again
 
-所有必填字段通过 `workitem update` 写入后，再次调用 `workflow transition-state` 触发流转：
+After all required fields are written through `workitem update`, call `workflow transition-state` again to trigger the flow:
 
 ```bash
-meegle workitem update --work-item-id 工作项ID --project-key 空间key --role-operate '{{role_operate}}' --fields '[{"field_key":"xxx","field_value":"yyy"}]' --format json
+meegle workitem update --work-item-id work item ID --project-key space key --role-operate '{{role_operate}}' --fields '[{"field_key":"xxx","field_value":"yyy"}]' --format json
 ```
 
 ```bash
-meegle workflow transition-state --work-item-id 工作项ID --project-key 空间key --transition-id transition_id --format json
+meegle workflow transition-state --work-item-id work item ID --project-key space key --transition-id transition_id --format json
 ```
 
-### STEP 6 — 返回结果
+### STEP 6 — Return results
 
-向用户展示：
+Show users:
 
-- 状态变更方向（**从 XX → YY**）
-- 自动 / 协助填入的必填项摘要
-- 工作项 ID 与（如返回包含）链接
-
----
-
-## 智能修复（自愈机制）
-
-> 通用自愈规则（格式错误、级联层级、枚举不合法）见 [error-handling.md](error-handling.md)。本 Skill 无额外补充规则。
+- Status change direction (**from XX → YY**)
+- Summary of required fields for automatic/assisted filling
+- Work item ID and (if returned included) link
 
 ---
 
-## 熔断与终止
+## Intelligent repair (self-healing mechanism)
 
-> 通用熔断规则（空间未找到、权限不足）见主文档 [SKILL.md](../SKILL.md)「错误处理」。以下为本 Skill 补充规则：
-
-1. **必填字段全部为硬拦截类型**（投票/计算字段），无法通过接口写入。
-2. **同一目标状态**：补字段 → 再次流转连续失败 **> 2 次**。
+> For general self-healing rules (format error, cascading level, illegal enumeration), see [error-handling.md](error-handling.md). There are no additional supplementary rules for this Skill.
 
 ---
 
-## 常见问题
+## Circuit breaker and termination
 
-| 问题 | 处理 |
+> For general circuit breaker rules (space not found, insufficient permissions), see the main document [SKILL.md](../SKILL.md) "Error Handling". The following are supplementary rules for this Skill:
+
+1. **Required fields are all of hard interception type** (voting/calculating fields) and cannot be written through the interface.
+2. **Same target status**: Supplementary field → Failed to transfer again **> 2 times**.
+
+---
+
+## FAQ
+
+| Problem | Solution |
 |------|------|
-| 用户只说"关闭这个 bug"没给空间 | 如 URL 可解析则用 URL；否则向用户确认 |
-| 可流转状态为空 | 说明当前状态无合法下一步，告知用户在页面核对状态流配置 |
-| 用户说"改为 XX"但 XX 不在可流转列表 | 展示当前可流转状态列表，让用户重新选择 |
-| 工作项实际是节点流 | 告知用户走 `workflow transition`（action=confirm/rollback），本 Skill 仅处理状态流 |
-| 同名字段多个 option | 展示全部 option_name 让用户选，**禁止默认取第一项** |
-| 同名人员多个 | 展示列表让用户指定，**禁止默认填当前操作者** |
+| The user just said "close this bug" without giving any space | If the URL can be resolved, use the URL; otherwise, confirm with the user |
+| The transferable status is empty | It means that the current status has no legal next step, and informs the user to check the status flow configuration on the page |
+| The user says "Change to XX" but XX is not in the transferable list | Display the current transferable status list and let the user choose again |
+| The work item is actually a node flow | Inform the user to go through `workflow transition` (action=confirm/rollback), this Skill only handles the status flow |
+| Multiple options for fields with the same name | Show all option_name to allow users to select, **Prohibit taking the first item by default** |
+| Multiple people with the same name | The display list allows users to specify, **It is prohibited to fill in the current operator by default** |

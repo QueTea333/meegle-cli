@@ -1,78 +1,78 @@
-# MQL 节点函数与关系函数
+# MQL node functions and relationship functions
 
-目录：1 节点函数 · 2 `get_node_attribute` · 3 控件函数多值语义 · 4 `__BELONGING` 服务端限制 · 5 关系判断函数 · 6 关系参数与跨端字段 · 7 其它关系函数
+Catalog: 1 Node functions · 2 `get_node_attribute` · 3 Control function multi-value semantics · 4 `__BELONGING` Server-side restrictions · 5 Relationship judgment functions · 6 Relationship parameters and cross-end fields · 7 Other relationship functions
 
-## 1. 节点函数
+## 1. Node function
 
-| 函数 | 用途 |
+| Function | Purpose |
 |------|------|
-| `all_nodes_name()` | 全部节点名数组 |
-| `in_progress_nodes_name()` | 进行中节点名数组 |
-| `risk_label()` | 节点延期状态标识数组，不支持 `any_match` |
-| `get_node_attribute(node, attribute)` | 指定节点属性；`node` 可为节点名 / `__ALL` / `__BELONGING`；「所属节点」必须用 `__BELONGING` |
+| `all_nodes_name()` | Array of all node names |
+| `in_progress_nodes_name()` | Array of in-progress node names |
+| `risk_label()` | Array of node extension status identifiers, `any_match` is not supported |
+| `get_node_attribute(node, attribute)` | Specify node attributes; `node` can be the node name / `__ALL` / `__BELONGING`; "owning node" must use `__BELONGING` |
 
-节点名以 `workflow get-node` 返回为准（`--node-id-list '["_all"]'`，同时传 `--project-key` 与 `--work-item-id`）。
+The node name is subject to the return of `workflow get-node` (`--node-id-list '["_all"]'`, and pass `--project-key` and `--work-item-id` at the same time).
 
-## 2. `get_node_attribute` 属性访问
+## 2. `get_node_attribute` attribute access
 
-可用属性：排期、估分、节点时间、节点完成结论、节点完成意见、负责人、当前负责人、状态。指定节点负责人时 `owner` 与 `负责人` 等价。
+Available attributes: scheduling, score evaluation, node time, node completion conclusion, node completion opinion, person in charge, current person in charge, and status. When specifying the node owner, `owner` is equivalent to `responsible person`.
 
-开始 / 结束时间的第二参数形式：节点排期 `'__排期_开始时间'` / `'__排期_结束时间'`；节点时间 `'__节点时间_开始时间'` / `'__节点时间_结束时间'`。
+The second parameter form of the start/end time: node schedule `'__scheduling_start time'` / `'__scheduling_end time'`; node time `'__node time_start time'` / `'__node time_end time'`.
 
-`__ALL` 简写：对整体属性直接用区间 / 比较，禁止拆 `__排期_开始时间` / `__排期_结束时间`，禁止外套 `any_match`；`排期` 支持 `BETWEEN`，`估分` 不支持 `BETWEEN`（拆 `>= a AND <= b`）。
+`__ALL` abbreviation: directly use interval/comparison for the overall attributes, prohibit splitting `__scheduling_start time` / `__scheduling_end time`, and prohibit `any_match`; `scheduling` supports `BETWEEN`, `estimate` does not support `BETWEEN` (split `>= a AND <= b`).
 
 ```sql
-WHERE array_contains(get_node_attribute('需求详评','owner'), '<id:userkey>')                    -- 指定节点负责人
-WHERE RELATIVE_DATETIME_BETWEEN(get_node_attribute('开始','__排期_开始时间'), 'past','30d')      -- 开始节点排期在过去 30 天
-WHERE array_contains(get_node_attribute('__BELONGING','当前负责人'), '<id:userkey>')            -- 所属节点当前负责人
-WHERE get_node_attribute('__ALL','排期') between '2026-01-01' and '2026-03-31'                  -- 全部节点排期在区间内
-WHERE get_node_attribute('__ALL','估分') >= 30                                                  -- 全部节点估分 ≥ 30
+WHERE array_contains(get_node_attribute('Detailed Requirements','owner'), '<id:userkey>') -- Specify the node person in charge
+WHERE RELATIVE_DATETIME_BETWEEN(get_node_attribute('start','__schedule_start time'), 'past','30d') -- Start node schedule in the past 30 days
+WHERE array_contains(get_node_attribute('__BELONGING','Current person in charge'), '<id:userkey>') -- The current person in charge of the node to which it belongs
+WHERE get_node_attribute('__ALL','Scheduling') between '2026-01-01' and '2026-03-31' -- All node schedules are within the range
+WHERE get_node_attribute('__ALL','Estimated score') >= 30 -- All node evaluation scores ≥ 30
 ```
 
-## 3. 控件函数多值语义
+## 3. Control function multi-value semantics
 
-`all_nodes_name()` / `in_progress_nodes_name()`（不能用 `IN`，只能走 `any_match`）：
+`all_nodes_name()` / `in_progress_nodes_name()` (cannot use `IN`, can only use `any_match`):
 
-| 语义 | 写法 |
+| Semantics | Writing |
 |------|------|
-| 存在选项属于（OR） | `any_match(<控件>, x -> x IN ('a','b'))` |
-| 包含（AND） | `array_contains(<控件>, 'a','b')` |
-| 集合完全相等 | `<控件> = '["a","b"]'`（JSON 数组，例外） |
-| 全部不属于 | `none_match(<控件>, x -> x IN ('a','b'))` |
-| 不同时包含（至少缺一个） | `NOT array_contains(<控件>, 'a','b')` |
+| Existing options belong to (OR) | `any_match(<control>, x -> x IN ('a','b'))` |
+| Contains (AND) | `array_contains(<control>, 'a','b')` |
+| Sets are exactly equal | `<control> = '["a","b"]'` (JSON array, exception) |
+| None of them | `none_match(<control>, x -> x IN ('a','b'))` |
+| Not both included (at least one is missing) | `NOT array_contains(<control>, 'a','b')` |
 
-`risk_label()`（不支持 `any_match`）：有交集（默认「含延期节点」）`array_intersect(risk_label(), '["延期/前端","延期/后端"]')`；全部包含用多个 `array_contains(risk_label(), 'x')` AND；
-父级「延期」/「排期信息不全」用 `array_contains(risk_label(),'延期')`；开始节点已延期 `risk_label() = '["延期/开始"]'`（集合完全相等，JSON 数组例外）。
+`risk_label()` (does not support `any_match`): There is intersection (default "including deferred nodes") `array_intersect(risk_label(), '["Deferred/front-end", "Deferred/back-end"]')`; all included with multiple `array_contains(risk_label(), 'x')` AND;
+The parent "postponed"/"scheduling information is incomplete" uses `array_contains(risk_label(),'postponed')`; the start node has been postponed `risk_label() = '["postponed/start"]'` (the collections are completely equal, with the exception of JSON arrays).
 
-## 4. `__BELONGING` 服务端限制（权威定义）
+## 4. `__BELONGING` Server-side restrictions (authoritative definition)
 
-`get_node_attribute('__BELONGING','状态')` 一旦被 `array_contains` 包裹（单条件即触发），或任意 `__BELONGING` 属性之间做 AND 组合（如「当前负责人 + 状态」），会触发 nil pointer / panic。
-修复：状态类必须用 `=` 顶层比较；负责人等多值属性必须保持单条件；需要组合时改用 `__ALL` 属性，或用状态字段 `work_item_status` + `current_status_operator` 拼接。
-
-```sql
-WHERE get_node_attribute('__BELONGING','状态') = '<进行中状态label>'   -- ✅ 顶层 =，返回空 list 无 error
-```
-
-## 5. 关系判断函数
-
-对关系对端做条件判断：`any_relation_match(rel, x -> expr)` 存在一个对端满足；`all_relation_match` 每一个都满足；`none_relation_match` 每一个都不满足；`not all_relation_match` 至少一个不满足。
-`relation_field_chain` 等取关系后必须外层套关系判断函数。
-
-## 6. 关系参数与跨端字段
-
-关系参数三种形式：1) 关联字段 `` `字段key` ``；2) `relation('关系名')`；3) `relation_field_chain('rel1', 'rel2' [, 'rel3'])`（≤ 3 跳）。子任务父工作项的关系名固定 `'__父工作项'`（双下划线前缀）。
-
-对端字段引用：`` x.`字段名<target:project_key::type_key>` `` 或 `` x.`字段名<target:all>` ``。通用字段必须用 `<target:all>`：标题、创建人、创建时间、业务线、优先级、当前负责人、所属工作项、所属空间、工作项 ID、工作项类型、状态。
+Once `get_node_attribute('__BELONGING','status')` is wrapped by `array_contains` (triggered by a single condition), or there is an AND combination between any `__BELONGING` attributes (such as "current person in charge + status"), nil pointer / panic will be triggered.
+Fix: Status classes must use `=` top-level comparison; multi-valued attributes such as person in charge must remain single condition; use the `__ALL` attribute instead when combination is required, or splice the status field `work_item_status` + `current_status_operator`.
 
 ```sql
-WHERE any_relation_match(`多选关联字段`, x -> x.`priority<target:all>` = 'P0')                                   -- 对端优先级 P0
-WHERE any_relation_match(relation_field_chain('__父工作项'), x -> x.`name<target:all>` like '%登录%')             -- 父工作项名称
-WHERE all_relation_match(relation_field_chain('__父工作项','需求关联软件'), x -> array_contains(get_node_attribute('开始','负责人'), '<id:userkey>'))
+WHERE get_node_attribute('__BELONGING','status') = '<in progress status label>' -- ✅ top level =, return empty list no error
 ```
 
-## 7. 其它关系函数
+## 5. Relationship judgment function
 
-- `parent_work_item(relation('关系名'))`：父工作项 ID，仅支持 SELECT，WHERE 报 `parent_work_item() not supported in stage Where`；
-  按父工作项过滤改用 `` any_relation_match(relation_field_chain('__父工作项'), x -> x.`work_item_id<target:all>` = '12345') ``。
-- `association()`：跨空间关联实例 ID，`WHERE association() = '实例ID'`。
-- `linked_work_item()`：子任务来源控件（父工作项 ID）。判空推荐 `IS NOT NULL`；等值右值必须是真实父工作项 ID，否则 `attribute_value not found`。
+Make conditional judgments on the relationship peers: `any_relation_match(rel, x -> expr)` There is one peer that satisfies; `all_relation_match` each of them satisfies; `none_relation_match` each of them does not satisfy; `not all_relation_match` at least one does not satisfy.
+`relation_field_chain` must be wrapped with a relationship judgment function after obtaining the relationship.
+
+## 6. Relationship parameters and cross-end fields
+
+There are three forms of relationship parameters: 1) associated field `` `field key` ``; 2) `relation('relation name')`; 3) `relation_field_chain('rel1', 'rel2' [, 'rel3'])` (≤ 3 hops). The relationship name of the child task's parent work item is fixed `'__parent work item'` (double underscore prefix).
+
+Peer field reference: `` x.`Field name <target:project_key::type_key>` `` or `` x.`Field name <target:all>` ``. Common fields must use `<target:all>`: title, creator, creation time, business line, priority, current person in charge, belonging work item, belonging space, work item ID, work item type, status.
+
+```sql
+WHERE any_relation_match(`Multi-select related fields`, x -> x.`priority<target:all>` = 'P0') -- Peer priority P0
+WHERE any_relation_match(relation_field_chain('__parent work item'), x -> x.`name<target:all>` like '%login%') -- parent work item name
+WHERE all_relation_match(relation_field_chain('__parent work item','requirement related software'), x -> array_contains(get_node_attribute('start','responsible person'), '<id:userkey>'))
+```
+
+## 7. Other relational functions
+
+- `parent_work_item(relation('relation name'))`: Parent work item ID, only supports SELECT, WHERE reports `parent_work_item() not supported in stage Where`;
+To filter by parent work item instead use `` any_relation_match(relation_field_chain('__parent work item'), x -> x.`work_item_id<target:all>` = '12345') ``.
+- `association()`: associate instance ID across space, `WHERE association() = 'instance ID'`.
+- `linked_work_item()`: subtask source control (parent work item ID). `IS NOT NULL` is recommended for null judgment; the equivalent rvalue must be the real parent work item ID, otherwise `attribute_value not found`.

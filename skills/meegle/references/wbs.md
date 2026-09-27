@@ -1,157 +1,157 @@
-# WBS 计划表
+#WBS schedule
 
-计划表（Work Breakdown Structure）有两套数据模型：
+The schedule (Work Breakdown Structure) has two sets of data models:
 
-- **草稿（draft）** — 当前用户的可编辑副本。`wbs create-draft` 创建、`wbs edit-draft` 原子编辑（单行或批量操作）、`wbs publish-draft` 发布、`wbs reset-draft` 放弃修改。
-- **实例（instance）** — 已发布的线上版本。只读，用 `wbs list-instance-rows` 查询。
+- **Draft** — An editable copy of the current user's copy. `wbs create-draft` creates, `wbs edit-draft` atomic edit (single line or batch operation), `wbs publish-draft` publishes, `wbs reset-draft` discards changes.
+- **instance** — published online version. Read-only, use `wbs list-instance-rows` to query.
 
-**常见流程**：`wbs create-draft` → 多次 `wbs edit-draft` → `wbs publish-draft`。
+**Common process**: `wbs create-draft` → `wbs edit-draft` → `wbs publish-draft` multiple times.
 
-**辅助命令**（创建草稿 / 重置 / 进度 / 模板）请见 [misc.md](misc.md)。
+**Auxiliary commands** (Create Draft/Reset/Progress/Template) see [misc.md](misc.md).
 
 ---
 
-## 共用查询能力（draft / instance）
+## Shared query capabilities (draft / instance)
 
-`wbs list-draft-rows` 与 `wbs list-instance-rows` 参数完全一致，仅查询的数据集不同——前者查当前用户的草稿，后者查线上实例。**禁止混用**：例如先用 `wbs list-draft-rows` 取行 uuid，后续递归 / 编辑也必须继续用草稿系列命令。
+The parameters of `wbs list-draft-rows` and `wbs list-instance-rows` are exactly the same, only the query data set is different - the former checks the current user's drafts, and the latter checks the online instances. **Mixed use is prohibited**: For example, first use `wbs list-draft-rows` to get the row uuid, and you must continue to use the draft series of commands for subsequent recursion/editing.
 
-### condition_query 支持字段
+### condition_query support fields
 
-筛选行用 `condition_query`（object）。**仅支持以下字段**：
+Filter rows using `condition_query` (object). **Only the following fields are supported**:
 
-| 字段 | 含义 | 取值 |
+| Field | Meaning | Value |
 |------|------|------|
-| `wbs_name` | 行名称 / 任务名称 / 排期项名称 / 子项名称 | string |
-| `wbs_parent_id` | 父级 uuid（用于查子级 / 下级 / 子任务 / 子项） | uuid |
-| `wbs_belong_status` | 所属状态 / 阶段（计划 / 开发 / 验证 / 发布等） | string |
-| `wbs_states_doing` | 当前状态 / 任务状态 | `not_started` / `doing` / `finished` |
-| `wbs_role` | 角色（可多人） | string |
-| `wbs_owner_in_charge` | 负责人 / 责任人（可多人） | userkey；查"我负责的"先调 `user search` 取 userkey |
-| `wbs_delay_label` | 延期标识 | `delay` / `normal` |
-| `wbs_milestone_node_type` | 节点类型 | `milestone` / `normal_node` / `key_path_node` |
-| `wbs_deletable` | 允许删除节点 | bool |
+| `wbs_name` | Row name / task name / schedule item name / sub-item name | string |
+| `wbs_parent_id` | Parent uuid (used to check children/subordinates/subtasks/child items) | uuid |
+| `wbs_belong_status` | Status/stage (planning/development/verification/release, etc.) | string |
+| `wbs_states_doing` | Current state / task state | `not_started` / `doing` / `finished` |
+| `wbs_role` | Role (can be multiple people) | string |
+| `wbs_owner_in_charge` | Person in charge / responsible person (can be multiple people) | userkey; check "I am responsible for" first call `user search` to get userkey |
+| `wbs_delay_label` | Delay label | `delay` / `normal` |
+| `wbs_milestone_node_type` | Node type | `milestone` / `normal_node` / `key_path_node` |
+| `wbs_deletable` | Allow deletion of nodes | bool |
 
-**递归查子级 SOP**：用户提到"子级 / 所有子 / 下级"时，先按条件筛出目标行取 `uuid`，再用 `wbs_parent_id` + `In` 查直接子级（多个 uuid 逗号分隔），再以下一层 uuid 继续递归直到无子级。**全流程必须使用同一工具**（草稿就一直草稿，实例就一直实例）。
+**Recursive child-level SOP**: When the user mentions "child/all children/subordinates", first filter out the target row according to the conditions to get `uuid`, then use `wbs_parent_id` + `In` to check the direct child (multiple uuid separated by commas), and then continue recursing to the next level of uuid until there are no children. **The same tool must be used throughout the entire process** (the draft will always be a draft, and the instance will always be an instance).
 
-### row_field_list 返回字段控制
+### row_field_list returns field control
 
-`row_field_list`（string[]）按需指定返回字段。为空时默认返回 `base.*` + `meta.uuid`；`["_all"]` 返回全量字段。
+`row_field_list` (string[]) specifies the return fields as required. When empty, it returns `base.*` + `meta.uuid` by default; `["_all"]` returns the full field.
 
-| 通配符 | 包含字段 |
+| wildcard | included fields |
 |--------|----------|
-| `meta.*` | `uuid`、`parent_id`、所属工作项信息等 |
-| `base.*` | `name`（行名）、`owners`（负责人）、`start_time` / `end_time`（实际开始 / 完成时间）、`schedule`（排期）、`schedule_dependency`（排期依赖）、`union_deliveries`（交付物）、`process_status`（当前状态） |
-| `node_extra.*` | 普通节点扩展：里程碑、所属状态、节点唯一 id `state_key`、前序节点等 |
-| `sub_instance_extra.*` | 子实例扩展：拆解模式 `dismantle_mode` |
+| `meta.*` | `uuid`, `parent_id`, related work item information, etc. |
+| `base.*` | `name` (row name), `owners` (responsible person), `start_time` / `end_time` (actual start/finish time), `schedule` (scheduling), `schedule_dependency` (scheduling dependency), `union_deliveries` (deliverables), `process_status` (current status) |
+| `node_extra.*` | Ordinary node extensions: milestones, belonging states, node unique id `state_key`, pre-order nodes, etc. |
+| `sub_instance_extra.*` | Sub-instance extension: dismantle mode `dismantle_mode` |
 
-**查工作项字段 / 节点字段**：先用 `workitem meta-fields` 判断是否为工作项字段、用 `workflow meta-node-fields` 判断是否为节点字段；再从计划表行中取对应 `workitem_id` / `state_key`，基于这些 ID 继续查字段值。
+**Check work item fields/node fields**: First use `workitem meta-fields` to determine whether it is a work item field, and use `workflow meta-node-fields` to determine whether it is a node field; then get the corresponding `workitem_id` / `state_key` from the schedule row, and continue to check the field values ​​based on these IDs.
 
 ### wbs list-draft-rows
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --work-item-id | string | 是 | 工作项 ID（**字符串**）；URL 自动解析；名称需先调 `workitem get` |
-| --project-key | string | 是 | 空间 key |
-| --condition-query | object | 否 | 筛选条件，仅支持上表字段 |
-| --need-structure | boolean | 否 | 是否返回树状层级。默认 `false`；查 / 编辑子级时设为 `true` |
-| --page-no | number | 否 | 页号，从 1 开始；返回 `has_more` 时需翻页 |
-| --page-size | number | 否 | 页大小，1–50，默认 25。超过 1000 行需分页合并 |
-| --row-field-list | string[] | 否 | 见上表 |
+| --work-item-id | string | Yes | Work item ID (**string**); URL is automatically parsed; the name needs to be adjusted first `workitem get` |
+| --project-key | string | yes | space key |
+| --condition-query | object | No | Filter condition, only supports the fields in the above table |
+| --need-structure | boolean | No | Whether to return the tree level. Default `false`; set to `true` when checking/editing children |
+| --page-no | number | No | Page number, starting from 1; page turning is required when returning `has_more` |
+| --page-size | number | no | Page size, 1–50, default 25. More than 1000 rows need to be merged in pages |
+| --row-field-list | string[] | No | See table above |
 
 ### wbs list-instance-rows
 
-参数与 `wbs list-draft-rows` 完全一致，仅查询数据集不同（线上已发布实例）。
+The parameters are exactly the same as `wbs list-draft-rows`, only the query data set is different (the instance has been published online).
 
 ---
 
 ## wbs edit-draft
 
-对计划表草稿执行**一次原子编辑**。一次调用只能传一个 `operation_type`；该操作内部可通过 `items` / `uuids` 等数组承载单行或批量编辑。
+Perform an atomic edit on a draft schedule. Only one `operation_type` can be passed in one call; the operation can internally carry single line or batch editing through arrays such as `items` / `uuids`.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --work-item-id | string | 是 | 工作项 ID |
-| --project-key | string | 是 | 空间 key |
-| --operation | object | 是 | 操作对象，结构因操作类型而异 |
+| --work-item-id | string | yes | work item ID |
+| --project-key | string | yes | space key |
+| --operation | object | Yes | Operation object, the structure varies depending on the operation type |
 
-### operation 结构
+### operation structure
 
-`operation` 是一个对象，统一形如：
+`operation` is an object, uniformly shaped like:
 
 ```json
 {
-  "operation_type": "<动作 PascalCase>",
+"operation_type": "<action PascalCase>",
   "operation_value": {
-    "<动作 snake_case>": { /* 动作特定字段 */ }
+"<action snake_case>": { /* Action specific fields */ }
   }
 }
 ```
 
-`operation_value` 下的子 key 必须与 `operation_type` 匹配；优先按下表传，避免只做机械 snake_case 猜测。
+The sub-key under `operation_value` must match `operation_type`; priority is given to passing it in the following table to avoid mechanical snake_case guessing.
 
-| operation_type | operation_value 子 key | 用途 |
+| operation_type | operation_value subkey | purpose |
 |----------------|------------------------|------|
-| `AddTaskRows` | `add_task_rows` | 批量新增普通任务行 |
-| `AddNodeRows` | `add_node_rows` | 批量新增资源节点行 |
-| `AddSubInstanceRows` | `add_sub_instance_rows` | 批量新增子工作项行 |
-| `AddResourceSubInstanceRows` | `add_resource_sub_instance_row` | 批量新增资源子实例行（注意子 key 里的 `row` 为单数） |
-| `DeleteRows` | `delete_rows` | 批量删除 / 移出行 |
-| `RestoreRows` | `restore_rows` | 批量恢复行 |
-| `UpdateDismantleMode` | `update_dismantle_mode` | 切换拆解模式 |
-| `AdjustRowOrder` | `adjust_row_order` | 调整行排序 / 父级 |
-| `UpdateNodeSequence` | `update_node_sequence` | 修改资源节点前后序 |
-| `UpdateNodePhases` | `update_node_phases` | 批量修改节点所属阶段 |
-| `UpdateName` | `update_name` | 修改名称 |
-| `UpdateRoleOwners` | `update_role_owners` | 批量修改角色负责人 |
-| `UpdateDelivery` | `update_delivery` | 修改交付物 |
-| `UpdatePlannedSchedule` | `update_planned_schedule` | 修改单行排期（旧单行形态） |
-| `UpdatePlannedSchedules` | `update_planned_schedules` | 批量修改计划排期 |
-| `UpdateSchedulePoints` | `update_schedule_points` | 批量修改估分 |
-| `UpdateScheduleActualTimes` | `update_schedule_actual_times` | 批量修改实际工时 |
+| `AddTaskRows` | `add_task_rows` | Add common task rows in batches |
+| `AddNodeRows` | `add_node_rows` | Add resource node rows in batches |
+| `AddSubInstanceRows` | `add_sub_instance_rows` | Add sub-work item rows in batches |
+| `AddResourceSubInstanceRows` | `add_resource_sub_instance_row` | Add resource sub-instance rows in batches (note that `row` in the sub-key is singular) |
+| `DeleteRows` | `delete_rows` | Batch delete/move rows |
+| `RestoreRows` | `restore_rows` | Batch restore rows |
+| `UpdateDismantleMode` | `update_dismantle_mode` | Switch disassembly mode |
+| `AdjustRowOrder` | `adjust_row_order` | Adjust row ordering / parent |
+| `UpdateNodeSequence` | `update_node_sequence` | Modify the sequence of resource nodes |
+| `UpdateNodePhases` | `update_node_phases` | Batch modify the phases of nodes |
+| `UpdateName` | `update_name` | Modify name |
+| `UpdateRoleOwners` | `update_role_owners` | Batch modify role owners |
+| `UpdateDelivery` | `update_delivery` | Modify deliverables |
+| `UpdatePlannedSchedule` | `update_planned_schedule` | Modify single row schedule (old single row form) |
+| `UpdatePlannedSchedules` | `update_planned_schedules` | Modify plans in batches |
+| `UpdateSchedulePoints` | `update_schedule_points` | Modify points in batches |
+| `UpdateScheduleActualTimes` | `update_schedule_actual_times` | Modify actual working hours in batches |
 
-**选择要点**：
-- 用户说普通任务 / 子任务 / 任务行时用 `AddTaskRows`；其 `parent_uuid` 必须是当前计划表中允许新增子任务的父行，并非任意 `sub_instance` / `node` / `sub_task` 都可用。若后端返回 `can not add sub task under parentUUID` 或 `wbs task not found`，说明父行不支持该新增位置，需换父行或先确认拆解结构。
-- 用户说工作项类型（如"需求"、"项目活动"）时用 `AddSubInstanceRows`，并先调 `workitem meta-types` 确认 `work_item_type_key`。
-- 涉及资源节点或资源子实例时，先调 `wbs list-element-templates` 查询模板 / `element_key`；资源节点通常用 `AddNodeRows`，资源子实例用 `AddResourceSubInstanceRows`。
-- `UpdateRoleOwners` 与 `UpdateDelivery` 是全量覆盖语义。追加负责人或交付物前，先用 `wbs list-draft-rows` 取当前值并合并历史值；不要只传新增值。
-- 排期时间写 ISO8601 带时区字符串（如 `2026-04-22T00:00:00+08:00`）；不要传毫秒时间戳，也不要在 `specify_schedule` 外额外包一层 `schedule`。
+**Select points**:
+- Users use `AddTaskRows` when talking about ordinary tasks/subtasks/task rows; its `parent_uuid` must be the parent row in the current schedule that allows new subtasks, and not any `sub_instance` / `node` / `sub_task` are available. If the backend returns `can not add sub task under parentUUID` or `wbs task not found`, it means that the parent row does not support the new location, and you need to change the parent row or confirm the disassembly structure first.
+- Users use `AddSubInstanceRows` when talking about work item types (such as "requirements", "project activities"), and first adjust `workitem meta-types` to confirm `work_item_type_key`.
+- When involving resource nodes or resource sub-instances, first call `wbs list-element-templates` query template / `element_key`; usually use `AddNodeRows` for resource nodes and `AddResourceSubInstanceRows` for resource sub-instances.
+- `UpdateRoleOwners` and `UpdateDelivery` have full coverage semantics. Before adding a person in charge or a deliverable, use `wbs list-draft-rows` to get the current value and merge the historical value; do not just pass the new value.
+- Write the ISO8601 string with time zone for the scheduling time (such as `2026-04-22T00:00:00+08:00`); do not pass the millisecond timestamp, and do not include an additional layer of `schedule` in addition to `specify_schedule`.
 
-**示例：批量新增普通任务行**
+**Example: Add common task lines in batches**
 
 ```json
 {
   "operation_type": "AddTaskRows",
   "operation_value": {
     "add_task_rows": {
-      "parent_uuid": "<上级行 uuid，来自 wbs list-draft-rows>",
+"parent_uuid": "<parent row uuid, from wbs list-draft-rows>",
       "pre_uuid": "",
       "items": [
-        { "name": "新任务名" }
+{ "name": "New task name" }
       ]
     }
   }
 }
 ```
 
-**示例：批量新增资源节点行**
+**Example: Add resource node rows in batches**
 
 ```json
 {
   "operation_type": "AddNodeRows",
   "operation_value": {
     "add_node_rows": {
-      "parent_uuid": "<上级行 uuid>",
+"parent_uuid": "<parent row uuid>",
       "pre_uuid": "",
       "phase": "started",
       "items": [
-        { "element_key": "<来自 wbs list-element-templates 的 element_key>" }
+{ "element_key": "<element_key from wbs list-element-templates>" }
       ]
     }
   }
 }
 ```
 
-**示例：批量新增子工作项行**
+**Example: Add sub-work item rows in batches**
 
 ```json
 {
@@ -159,10 +159,10 @@
   "operation_value": {
     "add_sub_instance_rows": [
       {
-        "parent_uuid": "<上级行 uuid>",
-        "work_item_type_key": "<来自 workitem meta-types 的工作项类型 key>",
+"parent_uuid": "<parent row uuid>",
+"work_item_type_key": "<work item type key from workitem meta-types>",
         "fields": [
-          { "field_key": "name", "field_value": "子工作项名称" }
+{ "field_key": "name", "field_value": "Sub work item name" }
         ]
       }
     ]
@@ -170,7 +170,7 @@
 }
 ```
 
-**示例：批量新增资源子实例行**
+**Example: Add resource sub-instance rows in batches**
 
 ```json
 {
@@ -178,23 +178,23 @@
   "operation_value": {
     "add_resource_sub_instance_row": [
       {
-        "parent_uuid": "<上级行 uuid>",
-        "work_item_type_key": "<资源工作项类型 key>",
-        "resource_work_item_ids": ["<已有资源实例 ID>"]
+"parent_uuid": "<parent row uuid>",
+"work_item_type_key": "<resource work item type key>",
+"resource_work_item_ids": ["<Existing resource instance ID>"]
       }
     ]
   }
 }
 ```
 
-**示例：批量修改计划排期**
+**Example: Modify plan schedule in batches**
 
 ```json
 {
   "operation_type": "UpdatePlannedSchedules",
   "operation_value": {
     "update_planned_schedules": {
-      "uuids": ["<行 uuid>"],
+"uuids": ["<line uuid>"],
       "different_schedule": false,
       "specify_schedule": {
         "estimate_start": "2026-04-22T00:00:00+08:00",
@@ -205,14 +205,14 @@
 }
 ```
 
-**示例：批量修改估分 / 实际工时**
+**Example: Batch modification of estimates/actual hours**
 
 ```json
 {
   "operation_type": "UpdateSchedulePoints",
   "operation_value": {
     "update_schedule_points": {
-      "uuids": ["<行 uuid>"],
+"uuids": ["<line uuid>"],
       "different_schedule": false,
       "schedule_point": {
         "schedule_point_value": 3,
@@ -228,7 +228,7 @@
   "operation_type": "UpdateScheduleActualTimes",
   "operation_value": {
     "update_schedule_actual_times": {
-      "uuids": ["<行 uuid>"],
+"uuids": ["<line uuid>"],
       "different_schedule": false,
       "actual_time": {
         "value": 5,
@@ -239,16 +239,16 @@
 }
 ```
 
-**示例：批量删除 / 恢复行**
+**Example: Batch delete/restore rows**
 
 ```json
 {
   "operation_type": "DeleteRows",
   "operation_value": {
     "delete_rows": {
-      "uuids": ["<行 uuid>"],
+"uuids": ["<line uuid>"],
       "delete_action_type": "delete",
-      "reason": "重复行"
+"reason": "Duplicate row"
     }
   }
 }
@@ -259,13 +259,13 @@
   "operation_type": "RestoreRows",
   "operation_value": {
     "restore_rows": {
-      "uuids": ["<行 uuid>"]
+"uuids": ["<line uuid>"]
     }
   }
 }
 ```
 
-**示例：批量修改阶段 / 负责人**
+**Example: Batch modification stage/person in charge**
 
 ```json
 {
@@ -273,7 +273,7 @@
   "operation_value": {
     "update_node_phases": {
       "phase": "started",
-      "uuids": ["<行 uuid>"]
+"uuids": ["<line uuid>"]
     }
   }
 }
@@ -284,41 +284,41 @@
   "operation_type": "UpdateRoleOwners",
   "operation_value": {
     "update_role_owners": {
-      "uuids": ["<行 uuid>"],
+"uuids": ["<line uuid>"],
       "owners": ["<userkey>"]
     }
   }
 }
 ```
 
-调用后响应里若有 `change_uuids`，可直接拿去做下一步 `wbs edit-draft`（如改排期）或 `wbs publish-draft` 的部分发布。
+If there is `change_uuids` in the response after the call, it can be directly used for the next step of `wbs edit-draft` (such as changing the schedule) or `wbs publish-draft` for partial publishing.
 
-**建议工作流**：
-1. `wbs list-draft-rows` 取目标行 / 父行的 `uuid` 与当前字段值
-2. 调 `wbs edit-draft` 一次执行一种操作
-3. 如调用返回了 `operation_id`，先用 `wbs get-draft-progress` 轮询完成再进行下一次编辑——多个 `wbs edit-draft` 并发或不等异步完成就连发可能丢操作
-4. 全部改完用 `wbs publish-draft` 发布
+**Suggested Workflow**:
+1. `wbs list-draft-rows` gets the `uuid` and current field value of the target row/parent row
+2. Call `wbs edit-draft` to perform one operation at a time
+3. If the call returns `operation_id`, first use `wbs get-draft-progress` to poll for completion before making the next edit - multiple `wbs edit-draft` may be sent concurrently or without waiting for asynchronous completion, and operations may be lost.
+4. Use `wbs publish-draft` to publish all changes.
 
 ---
 
 ## wbs publish-draft
 
-将编辑完成的草稿发布到线上。
+Post the edited draft online.
 
-| 参数 | 类型 | 必填 | 说明 |
+| Parameters | Type | Required | Description |
 |------|------|------|------|
-| --project-key | string | 是 | 空间 key |
-| --work-item-id | string | 是 | 工作项 ID |
-| --uuid-strings-list | string[] | 否 | 要发布的行 uuid 列表。**部分发布**：传 uuid 列表，无需二次确认。**全量发布**：不传此字段（或传 `["_all"]`），必须先用以下**固定话术**二次确认，用户同意后才执行 |
+| --project-key | string | yes | space key |
+| --work-item-id | string | yes | work item ID |
+| --uuid-strings-list | string[] | No | List of row uuids to publish. **Partial release**: Pass the uuid list without secondary confirmation. **Full release**: Do not pass this field (or pass `["_all"]`), you must first confirm it twice with the following **fixed words**, and then execute it after the user agrees |
 
-### 全量发布二次确认（固定话术）
+### Second confirmation of full release (fixed words)
 
-> 本人及协同者的全部编辑内容均会被发布，请确认是否全量发布？
+> All edited content by myself and my collaborators will be published. Please confirm whether you want to publish it in full?
 
-部分发布（传入 `uuid_strings_list`）**不需要**二次确认，直接执行。
+Partial publishing (passing in `uuid_strings_list`) **does not require** secondary confirmation and is executed directly.
 
 ---
 
-## 异步操作进度
+## Asynchronous operation progress
 
-`wbs create-draft` / `wbs edit-draft` / `wbs publish-draft` / `wbs reset-draft` 返回 `operation_id` 后，需用 `wbs get-draft-progress` 轮询进度。参数表见 [misc.md](misc.md#wbs-辅助命令)。
+`wbs create-draft` / `wbs edit-draft` / `wbs publish-draft` / `wbs reset-draft` After returning `operation_id`, you need to use `wbs get-draft-progress` to poll the progress. See [misc.md](misc.md#wbs-auxiliary command) for the parameter list.

@@ -5,7 +5,7 @@ package formatting
 
 // ViewRegistry is a placeholder extension point for per-command column
 // overrides. The current design commits to the global priority list covering
-// ~80% of commands (see spec §决策摘要); add RegisterView methods here when a
+// ~80% of commands (see spec §Decision Summary); add RegisterView methods here when a
 // command needs a bespoke view. Keeping this type published ensures the API
 // shape is stable before the first override lands.
 type ViewRegistry struct{}
